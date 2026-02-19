@@ -1,7 +1,7 @@
 import math
 
-from domain.model import WorldVector, Level, PickupOrb
-from interactors.interactors import Scene, Presenter, UserInput, HUDPresenterModel, HUDGraphic, WorldPresenterModel, WorldGraphic, WorldGraphics
+from domain.model import WorldVector, Level, PickupOrb, Element
+from interactors.interactors import Scene, Presenter, UserInput, HUDPresenterModel, HUDGraphic, WorldPresenterModel, WorldGraphic
 
 
 def input_direction(user_input: UserInput) -> WorldVector:
@@ -46,16 +46,18 @@ class FightScene(Scene):
             WorldPresenterModel(id(player), graphic=WorldGraphic.PLAYER, position=player.position),
             *(
                 WorldPresenterModel(
-                    id(wall), 
-                    graphic=WorldGraphics.resolve_world_graphic(variant=wall.wall.name, fallback_world_graphic=WorldGraphic.WALL), 
-                    position=wall.position)
+                    id(wall),
+                    graphic=WorldGraphic[f"WALL_{wall.wall.name}"],
+                    position=wall.position,
+                )
                 for wall in self.level.get_walls()
             ),
             *(
                 WorldPresenterModel(
-                    id(orb), 
-                    graphic=WorldGraphics.resolve_world_graphic(variant=orb.element.name, fallback_world_graphic=WorldGraphic.ORB_ELEMENT), 
-                    position=orb.position)
+                    id(orb),
+                    graphic=WorldGraphic[f"ORB_ELEMENT_{orb.element.name}"],
+                    position=orb.position,
+                )
                 for orb in self.level.get_orbs()
             ),
             HUDPresenterModel(id(HUDGraphic.ORB_INVENTORY_BACKDROP), HUDGraphic.ORB_INVENTORY_BACKDROP),

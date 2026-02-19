@@ -135,7 +135,6 @@ def touches(target: WorldVector, *others: HasPosition) -> bool:
     )
 
 class Wall(Enum):
-    WALL = auto()
     BUSH = auto()
     STONE = auto()
 

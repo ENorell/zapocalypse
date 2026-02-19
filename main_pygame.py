@@ -40,7 +40,9 @@ def main() -> None:
     
     world_repository = Level(
         Player(position=WorldVector(0, 0)),
-        [MaterializedWall(Wall.STONE, WorldVector(5, 5))], []
+        [MaterializedWall(Wall.STONE, WorldVector(5, 5)),
+         MaterializedWall(Wall.STONE, WorldVector(5, 4)),
+         MaterializedWall(Wall.STONE, WorldVector(5, 3)),], []
     )
 
     state_machine = StateMachine(
