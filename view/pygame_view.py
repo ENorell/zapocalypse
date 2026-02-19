@@ -45,8 +45,7 @@ class PygameView:
         
     @cache # Assume all image assets can be cached with no problem, resize elsewhere?
     def _get_image(self, file: Path, size: PixelVector):
-        image = pygame.image.load(file)
-        image.convert_alpha()
+        image = pygame.image.load(file).convert_alpha()
         return image
 
     def _process_input(self, delta_time: timedelta) -> None:

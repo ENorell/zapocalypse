@@ -4,7 +4,7 @@ from pathlib import Path
 from enum import Enum, auto
 
 from domain.model import WorldVector # Red flag?
-from interactors.interactors import WorldGraphic, UiGraphic, PresenterModel, UiPresenterModel, WorldPresenterModel
+from interactors.interactors import WorldGraphic, UiGraphic, HUDGraphic, PresenterModel, UiPresenterModel, WorldPresenterModel, HUDPresenterModel
 
 
 class PixelVector(NamedTuple):
@@ -51,9 +51,14 @@ class UiAssetModel:
     asset: Asset
     position: PixelVector
 @dataclass
+class HUDAssetModel:
+    asset: Asset
+    position: PixelVector
+@dataclass
 class Assets:
     world: dict[WorldGraphic, WorldAssetModel] = field(default_factory=dict)
     ui: dict[UiGraphic, UiAssetModel] = field(default_factory=dict)
+    hud: dict[HUDGraphic, HUDAssetModel] = field(default_factory=dict)
 
 
 @dataclass
@@ -64,15 +69,6 @@ class InterfaceAsset:
 @dataclass
 class WorldAsset:
     asset: GraphicAsset
-
-
-
-@dataclass
-class RenderModel:
-    position: PixelVector
-    asset: GraphicAsset
-    rotation: int = 0
-
 
 @dataclass
 class AssetData:
@@ -133,6 +129,17 @@ class PixelPresenter:
         )
         self.render_models.append(render_model)
 
+    def _draw_hud_entity(self, id_: int, graphic: HUDGraphic):
+        asset_data = self._assets.hud.get(graphic)
+        if not asset_data: raise MissingAssetError(f"No asset found for graphic {graphic}")
+
+        render_model = RenderModel(
+                id=id_,
+                position=asset_data.position,
+                asset=asset_data.asset
+            )
+        self.render_models.append(render_model)
+
     def draw(self, presenter_models: list[PresenterModel]) -> None:
         self.render_models.clear()
 
@@ -140,4 +147,5 @@ class PixelPresenter:
             match entity:
                 case UiPresenterModel(id_, graphic): self._draw_interface_entity(id_, graphic)
                 case WorldPresenterModel(id_, graphic, position): self._draw_world_entity(id_, position, graphic)
+                case HUDPresenterModel(id_, graphic): self._draw_hud_entity(id_, graphic)
                 case _: raise UnknownModelType(f"Cannot recognize model {type(entity)}")

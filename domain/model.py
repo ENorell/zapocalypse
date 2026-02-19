@@ -14,14 +14,6 @@ class WorldVector(NamedTuple):
     y: float
 
 
-class Element(Enum):
-    FIRE = auto()
-    WATER = auto()
-    WIND = auto()
-    ROOT = auto()
-    THUNDER = auto()
-
-
 # spell_book = {
 #     {Element.FIRE, Element.WIND, Element.THUNDER}: "fire storm",
 #     (Element.FIRE, Element.FIRE, Element.WIND): "Fire Tornado"
@@ -45,6 +37,12 @@ class FireBall(Spell):
     def execute(self) -> None:
         self._level.spawn("fire", self._caster.position, self._caster.facing_direction)
 
+class Element(Enum):
+    FIRE = auto()
+    WATER = auto()
+    WIND = auto()
+    ROOT = auto()
+    THUNDER = auto()
 
 @dataclass(frozen=True)
 class ElementOrb:
@@ -109,33 +107,6 @@ class Move(Command):
     def undo(self) -> None:
         pass
 
-
-def command_move(player, target, walls) -> None:
-    if touches(target, *walls):
-        return
-    player.position = target
-
-class HasPosition(Protocol):
-    position: WorldVector
-
-def touches(target: WorldVector, *others: HasPosition) -> bool:
-    return any(
-        math.dist(other.position, target) < 1
-        for other in others
-    )
-
-def pickup_orb(player, orbs: list[ElementOrb]) -> None:
-    touching_orb = next(
-            (
-                orb for orb in orbs
-                if touches(orb.position, player)
-            ),
-            None
-        )
-    if not touching_orb: return
-    orbs.remove(touching_orb)
-    player.give(touching_orb)
-
 class PickupOrb(Command):
     def __init__(self, player: Player, orbs: list[ElementOrb]):
         self._player = player
@@ -151,26 +122,39 @@ class PickupOrb(Command):
         )
         if not touching_orb: return
         self._orbs.remove(touching_orb)
-        self._player.give(touching_orb)
+        self._player.give_element(touching_orb)
         self.was_successful = True
-        
 
-@dataclass(frozen=True)
-class Wall:
+class HasPosition(Protocol):
     position: WorldVector
 
+def touches(target: WorldVector, *others: HasPosition) -> bool:
+    return any(
+        math.dist(other.position, target) < 1
+        for other in others
+    )
+
+class Wall(Enum):
+    WALL = auto()
+    BUSH = auto()
+    STONE = auto()
+
+@dataclass(frozen=True)
+class MaterializedWall:
+    wall: Wall
+    position: WorldVector
 
 class Level:
-    def __init__(self, player: Player, walls: list[Wall], orbs: list[ElementOrb]):
+    def __init__(self, player: Player, materialized_walls: list[MaterializedWall], orbs: list[ElementOrb]):
         self._player = player
-        self._walls = walls
+        self._walls: list[MaterializedWall] = materialized_walls
         self._orbs: list[ElementOrb] = orbs
 
     @property
     def player(self) -> Player:
         return self._player
 
-    def get_walls(self) -> list[Wall]:
+    def get_walls(self) -> list[MaterializedWall]:
         return list(self._walls)
 
     def get_orbs(self) -> list[ElementOrb]:
@@ -197,13 +181,25 @@ class Level:
         if not self._collides_with_wall(target_position):
             self._player.position = target_position
 
-    def spawn_orb(self) -> None:
+    def spawn_orb(self, orb_position: WorldVector) -> None:
         self._orbs.append(
             ElementOrb(
                 element=random.choice(list(Element)),
-                position=WorldVector(2,3),
+                position=orb_position,
             )
         )
+
+    def spawn_orb_in_free_position(self, spawn_area_x, spawn_area_y) -> None:
+        occupied_positions = {orb.position for orb in self._orbs}
+        all_positions = {WorldVector(x, y) for x in range(spawn_area_x) for y in range(spawn_area_y)}
+
+        all_free_positions = list(all_positions - occupied_positions)
+
+        if not all_free_positions:
+            raise ValueError("Cannot spawn orb, no free positions")
+
+        position_new_orb = random.choice(all_free_positions)
+        self.spawn_orb(position_new_orb)
 
     def get_touching_orb(self) -> Optional[ElementOrb]:
         return next(
@@ -230,9 +226,8 @@ class Level:
                 return True
         return False
 
-
 class Physics:
-    def __init__(self, walls: list[Wall], player: Player) -> None:#entities: list[Wall | Player]):
+    def __init__(self, walls: list[MaterializedWall], player: Player) -> None:#entities: list[Wall | Player]):
         self._walls = walls #level?
         self._player = player
 
@@ -241,3 +236,22 @@ class Physics:
             math.dist(collide_entity.position, target) < 1
             for collide_entity in self._walls
         )
+    
+
+# def command_move(player, target, walls) -> None:
+#     if touches(target, *walls):
+#         return
+#     player.position = target
+
+
+# def pickup_orb(player, orbs: list[ElementOrb]) -> None:
+#     touching_orb = next(
+#             (
+#                 orb for orb in orbs
+#                 if touches(orb.position, player)
+#             ),
+#             None
+#         )
+#     if not touching_orb: return
+#     orbs.remove(touching_orb)
+#     player.give(touching_orb)
