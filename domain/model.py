@@ -48,7 +48,7 @@ class Element(Enum):
 class ElementOrb:
     element: Element
     position: WorldVector
-
+    not_stackable: bool = True
 
 class Player:
     base_run_speed = 8
@@ -107,7 +107,7 @@ class Move(Command):
     def undo(self) -> None:
         pass
 
-class PickupOrb(Command):
+class PickupElementOrb(Command):
     def __init__(self, player: Player, orbs: list[ElementOrb]):
         self._player = player
         self._orbs = orbs
@@ -122,7 +122,7 @@ class PickupOrb(Command):
         )
         if not touching_orb: return
         self._orbs.remove(touching_orb)
-        self._player.give_element(touching_orb)
+        self._player.give_element(touching_orb.element)
         self.was_successful = True
 
 class HasPosition(Protocol):
@@ -134,26 +134,27 @@ def touches(target: WorldVector, *others: HasPosition) -> bool:
         for other in others
     )
 
-class Wall(Enum):
+class WallType(Enum):
     BUSH = auto()
     STONE = auto()
 
 @dataclass(frozen=True)
-class MaterializedWall:
-    wall: Wall
+class Wall:
+    wall_type: WallType
     position: WorldVector
+    not_stackable: bool = True
 
 class Level:
-    def __init__(self, player: Player, materialized_walls: list[MaterializedWall], orbs: list[ElementOrb]):
+    def __init__(self, player: Player, walls: list[Wall], orbs: list[ElementOrb]):
         self._player = player
-        self._walls: list[MaterializedWall] = materialized_walls
+        self._walls: list[Wall] = walls
         self._orbs: list[ElementOrb] = orbs
 
     @property
     def player(self) -> Player:
         return self._player
 
-    def get_walls(self) -> list[MaterializedWall]:
+    def get_walls(self) -> list[Wall]:
         return list(self._walls)
 
     def get_orbs(self) -> list[ElementOrb]:
@@ -175,7 +176,7 @@ class Level:
     def push(self, direction: WorldVector, duration: timedelta):
         current_x, current_y = self._player.position
         move_x, move_y = direction
-        distance = self._player.get_current_speed() * duration.total_seconds() / math.hypot(*direction)
+        distance = self._player.get_speed() * duration.total_seconds() / math.hypot(*direction)
         target_position = WorldVector(current_x + move_x * distance, current_y + move_y * distance)
         if not self._collides_with_wall(target_position):
             self._player.position = target_position
@@ -188,8 +189,10 @@ class Level:
             )
         )
 
+    # Spawn not stackable object general?
     def spawn_orb_in_free_position(self, spawn_area_x, spawn_area_y) -> None:
-        occupied_positions = {orb.position for orb in self._orbs}
+        occupied_positions = {orb.position for orb in self._orbs} | {wall.position for wall in self._walls}
+
         all_positions = {WorldVector(x, y) for x in range(spawn_area_x) for y in range(spawn_area_y)}
 
         all_free_positions = list(all_positions - occupied_positions)
@@ -226,7 +229,7 @@ class Level:
         return False
 
 class Physics:
-    def __init__(self, walls: list[MaterializedWall], player: Player) -> None:#entities: list[Wall | Player]):
+    def __init__(self, walls: list[Wall], player: Player) -> None:#entities: list[Wall | Player]):
         self._walls = walls #level?
         self._player = player
 

@@ -2,7 +2,7 @@ from pathlib import Path
 
 from interactors.interactors import SceneChoice
 from interface.state_machine import StateMachine
-from domain.model import Player, WorldVector, Level, MaterializedWall, Wall
+from domain.model import Player, WorldVector, Level, Wall, WallType
 from interactors.scenes.start_menu import StartMenu
 from interactors.scenes.fight_scene import FightScene
 from interface.pixel.presenter import PixelPresenter, PixelVector, Assets, HUDGraphic, HUDAssetModel, UiGraphic, UiAssetModel, \
@@ -40,9 +40,9 @@ def main() -> None:
     
     world_repository = Level(
         Player(position=WorldVector(0, 0)),
-        [MaterializedWall(Wall.STONE, WorldVector(5, 5)),
-         MaterializedWall(Wall.STONE, WorldVector(5, 4)),
-         MaterializedWall(Wall.STONE, WorldVector(5, 3)),], []
+        [Wall(WallType.STONE, WorldVector(5, 5)),
+         Wall(WallType.STONE, WorldVector(5, 4)),
+         Wall(WallType.STONE, WorldVector(5, 3)),], []
     )
 
     state_machine = StateMachine(

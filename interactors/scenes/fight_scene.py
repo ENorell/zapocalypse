@@ -1,6 +1,6 @@
 import math
 
-from domain.model import WorldVector, Level, PickupOrb, Element
+from domain.model import WorldVector, Level, PickupElementOrb, Element
 from interactors.interactors import Scene, Presenter, UserInput, HUDPresenterModel, HUDGraphic, WorldPresenterModel, WorldGraphic
 
 
@@ -13,8 +13,8 @@ def input_direction(user_input: UserInput) -> WorldVector:
         y/magnitude,
     ) or WorldVector(0,0)
 
-def _is_orb_hovered(user_input: UserInput) -> bool:
-    return id(HUDGraphic.ORB_INVENTORY_SLOTS) in user_input.selected_ids
+# def _is_orb_hovered(user_input: UserInput) -> bool:
+#     return id(HUDGraphic.ORB_INVENTORY_SLOTS) in user_input.selected_ids
 
 class FightScene(Scene):
     def __init__(self, presenter: Presenter, level: Level):
@@ -25,8 +25,8 @@ class FightScene(Scene):
     #     hud_backdrop = self.hu
 
     def start(self):
-        for _ in range(8):
-            self.level.spawn_orb_in_free_position(4,4)
+        for _ in range(5):
+            self.level.spawn_orb_in_free_position(6,6)
 
     def update(self, user_input: UserInput) -> None:
 
@@ -37,17 +37,16 @@ class FightScene(Scene):
         
         self.level.push_player(direction=input_direction(user_input), distance=distance)
 
-        pick_up_orb = PickupOrb(player, orbs)
+        pick_up_orb = PickupElementOrb(player, orbs)
         pick_up_orb.execute()
         # if pickup_effect := self.level.can_pickup_orb():
         #     self.level.do_pickup_orb()
-
         self._presenter.draw([
             WorldPresenterModel(id(player), graphic=WorldGraphic.PLAYER, position=player.position),
             *(
                 WorldPresenterModel(
                     id(wall),
-                    graphic=WorldGraphic[f"WALL_{wall.wall.name}"],
+                    graphic=WorldGraphic[f"WALL_{wall.wall_type.name}"],
                     position=wall.position,
                 )
                 for wall in self.level.get_walls()
@@ -60,6 +59,11 @@ class FightScene(Scene):
                 )
                 for orb in self.level.get_orbs()
             ),
+            # (WorldPresenterModel(
+            #     id(element), 
+            #     graphic = WorldGraphic[f"ORB_ELEMENT_{element.name}"], 
+            #     position = element.position,
+            # ) for element in self.level.player._elements),
             HUDPresenterModel(id(HUDGraphic.ORB_INVENTORY_BACKDROP), HUDGraphic.ORB_INVENTORY_BACKDROP),
             HUDPresenterModel(id(HUDGraphic.ORB_INVENTORY_SLOT_ONE), HUDGraphic.ORB_INVENTORY_SLOT_ONE),
             HUDPresenterModel(id(HUDGraphic.ORB_INVENTORY_SLOT_TWO), HUDGraphic.ORB_INVENTORY_SLOT_TWO),
