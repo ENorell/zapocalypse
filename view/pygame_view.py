@@ -5,6 +5,7 @@ from datetime import timedelta
 
 import pygame
 
+from interactors.interactors import StopGame
 from interface.pixel.presenter import RenderModel, PixelVector, ImageAsset, BoxAsset, PixelPresenter
 from interface.pixel.controller import DeviceEvent, PixelController
 
@@ -64,7 +65,10 @@ class PygameView:
             up_key=pygame.key.get_pressed()[pygame.K_UP],
             down_key=pygame.key.get_pressed()[pygame.K_DOWN],
         )
-        self._controller.update(event)
+        try:
+            self._controller.update(event)
+        except StopGame:
+            self._is_running = False
 
     def _get_hovered_ids(self) -> list[int]:
         result = []
