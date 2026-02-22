@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 from datetime import timedelta
 
-from interactors.interactors import UserInput
+from interactors.scene import UserInput
 from interface.state_machine import StateMachine
 
-@dataclass
+
+@dataclass(frozen=True)
 class DeviceEvent:
     entity_ids: list[int]
     delta_time: timedelta

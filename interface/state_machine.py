@@ -1,4 +1,4 @@
-from interactors.interactors import SceneChoice, Scene, UserInput, StopGame, SceneSwitch
+from interactors.scene import SceneChoice, Scene, UserInput, StopGame, SceneSwitch
 
 
 class StateMachine:

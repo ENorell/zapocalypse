@@ -5,8 +5,9 @@ from datetime import timedelta
 
 import pygame
 
-from interactors.interactors import StopGame
-from interface.pixel.presenter import RenderModel, PixelVector, ImageAsset, BoxAsset, PixelPresenter
+from interactors.scene import StopGame
+from interface.pixel.presenter import RenderModel, PixelVector, PixelPresenter
+from interface.pixel.render_model import ImageAsset, BoxAsset, CircleAsset
 from interface.pixel.controller import DeviceEvent, PixelController
 
 
@@ -41,6 +42,8 @@ class PygameView:
             case BoxAsset(size, color):
                 box = pygame.Rect(model.position, size)
                 pygame.draw.rect(self._screen, color, box)
+            case CircleAsset(radius, color):
+                pygame.draw.circle(self._screen, radius=radius, color=color, center=model.position)
             case _:
                 raise RuntimeError
         

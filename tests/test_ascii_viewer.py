@@ -5,7 +5,7 @@ from datetime import timedelta
 from interface.ascii.controller import AsciiController, DeviceEvent
 from interface.ascii.presenter import AsciiPresenter, ConsoleVector, Assets, UiAssetModel, UiGraphic, UiPresenterModel
 from interactors.scenes.start_menu import StartMenu
-from interactors.interactors import UserInput
+from interactors.scene import UserInput
 
 
 class TestStartMenu(unittest.TestCase):

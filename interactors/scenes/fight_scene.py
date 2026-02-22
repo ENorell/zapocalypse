@@ -1,7 +1,8 @@
 import math
 
 from domain.model import WorldVector, Level
-from interactors.interactors import Scene, Presenter, UserInput, WorldPresenterModel, WorldGraphic
+from interactors.presenter_model import PlayerModel, WallModel, OrbModel, OrbSlots
+from interactors.scene import Scene, Presenter, UserInput
 
 
 def input_direction(user_input: UserInput) -> WorldVector:
@@ -29,14 +30,15 @@ class FightScene(Scene):
             self.level.do_pickup_orb()
 
         self._presenter.draw([
-            WorldPresenterModel(id(player), graphic=WorldGraphic.PLAYER, position=player.position),
+            PlayerModel(id(player), position=player.position),
             *(
-                WorldPresenterModel(id(wall), graphic=WorldGraphic.WALL, position=wall.position)
+                WallModel(id(wall), position=wall.position)
                 for wall in self.level.get_walls()
             ),
             *(
-                WorldPresenterModel(id(orb), graphic=WorldGraphic.ORB, position=orb.position)
+                OrbModel(id(orb), element=orb.element, position=orb.position)
                 for orb in self.level.get_orbs()
-            )
+            ),
+            OrbSlots(list(player._elements))
         ])
         

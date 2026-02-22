@@ -1,40 +1,11 @@
 from typing import Protocol
-from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
-from enum import Enum, auto
 from datetime import timedelta
 from enum import Enum, auto
 from dataclasses import dataclass, field
-from typing import NamedTuple
 
+from interactors.presenter_model import PresenterModel
 
-class WorldVector(NamedTuple):
-    x: float
-    y: float
-
-
-class WorldGraphic(Enum):
-    PLAYER = auto()
-    WALL = auto()
-    ORB = auto()
-
-class UiGraphic(Enum):
-    START_GAME_BUTTON = auto()
-    QUIT_GAME_BUTTON = auto()
-
-@dataclass(frozen=True)
-class UiPresenterModel:
-    id: int #default to none?
-    graphic: UiGraphic
-    to_highlight: bool = False
-
-@dataclass(frozen=True)
-class WorldPresenterModel:
-    id: int
-    graphic: WorldGraphic
-    position: WorldVector
-
-PresenterModel = UiPresenterModel | WorldPresenterModel
 
 class Presenter(Protocol):
     def draw(self, models: list[PresenterModel]) -> None: ...
@@ -42,7 +13,7 @@ class Presenter(Protocol):
 
 @dataclass(frozen=True)
 class UserInput:
-    delta_time: timedelta
+    delta_time: timedelta = field(default_factory=timedelta)
     right: bool = False
     left: bool = False
     up: bool = False

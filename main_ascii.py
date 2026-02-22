@@ -1,6 +1,6 @@
 from interface.ascii.presenter import AsciiPresenter, ConsoleVector, Assets, UiGraphic, UiAssetModel, WorldGraphic, WorldAssetModel
 from interface.ascii.controller import AsciiController
-from interactors.interactors import SceneChoice
+from interactors.scene import SceneChoice
 from interface.state_machine import StateMachine
 from domain.model import Player, WorldVector, Level, Wall
 from interactors.scenes.start_menu import StartMenu

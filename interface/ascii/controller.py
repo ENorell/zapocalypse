@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Optional
 from datetime import timedelta
 
-from interactors.interactors import UserInput
+from interactors.scene import UserInput
 from interface.state_machine import StateMachine
 
 @dataclass

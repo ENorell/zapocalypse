@@ -1,7 +1,7 @@
 from typing import NamedTuple
 from dataclasses import dataclass, field
 
-from interactors.interactors import WorldGraphic, UiGraphic, PresenterModel, UiPresenterModel, WorldPresenterModel
+from interactors.scene import WorldGraphic, UiGraphic, PresenterModel, UiPresenterModel, WorldPresenterModel
 
 
 class ConsoleVector(NamedTuple):

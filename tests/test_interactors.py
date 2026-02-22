@@ -1,18 +1,17 @@
-from datetime import timedelta
 from unittest import TestCase, mock, main
 
-from interactors.interactors import UserInput, StopGame, Presenter
+from interactors.presenter_model import QuitButton, StartButton, PlayerModel, OrbSlots
+from interactors.scene import UserInput, StopGame, Presenter, SceneSwitch
 from domain.model import Player, WorldVector, Level
 from interactors.scenes.start_menu import StartMenu
 from interactors.scenes.fight_scene import FightScene
-from interface.pixel.presenter import UiGraphic, WorldGraphic, UiPresenterModel,WorldPresenterModel
 
 
 class TestStartMenu(TestCase):
     def test_quit_game(self) -> None:
         presenter = mock.create_autospec(Presenter)
         scene = StartMenu(presenter)
-        quit_input = UserInput(confirm=True, selected_ids=[id(UiGraphic.QUIT_GAME_BUTTON)], delta_time=timedelta())
+        quit_input = UserInput(confirm=True, selected_ids=[id(QuitButton)])
 
         with self.assertRaises(StopGame):
             scene.update(quit_input)
@@ -20,16 +19,24 @@ class TestStartMenu(TestCase):
     def test_start_menu_hover_button(self) -> None:
         presenter = mock.create_autospec(Presenter)
         scene = StartMenu(presenter)
-        user_input = UserInput(confirm=False, selected_ids=[id(UiGraphic.START_GAME_BUTTON)], delta_time=timedelta())
+        user_input = UserInput(confirm=False, selected_ids=[id(StartButton)])
 
         scene.update(user_input)
 
         presenter.draw.assert_called_with(
             [
-            UiPresenterModel(id=id(UiGraphic.START_GAME_BUTTON), graphic=UiGraphic.START_GAME_BUTTON, to_highlight=True),
-            UiPresenterModel(id=id(UiGraphic.QUIT_GAME_BUTTON), graphic=UiGraphic.QUIT_GAME_BUTTON)
+            StartButton(id=id(StartButton), highlight=True),
+            QuitButton(id=id(QuitButton), highlight=False),
             ]
         )
+
+    def test_switch_scene(self) -> None:
+        presenter = mock.create_autospec(Presenter)
+        scene = StartMenu(presenter)
+        switch_input = UserInput(confirm=True, selected_ids=[id(StartButton)])
+
+        with self.assertRaises(SceneSwitch):
+            scene.update(switch_input)
 
 
 class TestFight(TestCase):
@@ -38,12 +45,13 @@ class TestFight(TestCase):
         level = Level(player, walls=[], orbs=[])
         presenter = mock.create_autospec(Presenter)
         scene = FightScene(presenter, level)
-        user_input = UserInput(right=True, delta_time=timedelta())
+        user_input = UserInput(right=True)
         
         scene.update(user_input)
 
         presenter.draw.assert_called_once_with([
-            WorldPresenterModel(id=id(player), graphic=WorldGraphic.PLAYER, position=WorldVector(1 ,0))
+            PlayerModel(id=id(player), position=WorldVector(1.0, 0.0)),
+            OrbSlots(elements=[])
         ])
 
 

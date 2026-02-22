@@ -70,3 +70,4 @@ class TestSpells(TestCase):
         spell = FireBall()
         
         cast(spell, player)
+        

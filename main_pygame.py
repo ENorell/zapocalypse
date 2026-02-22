@@ -1,12 +1,11 @@
-from pathlib import Path
-
-from interactors.interactors import SceneChoice
-from interface.state_machine import StateMachine
 from domain.model import Player, WorldVector, Level, Wall
 from interactors.scenes.start_menu import StartMenu
 from interactors.scenes.fight_scene import FightScene
-from interface.pixel.presenter import PixelPresenter, PixelVector, Assets, UiGraphic, UiAssetModel, WorldGraphic, \
-    WorldAssetModel, ImageAsset, RGB, BoxAsset, Text
+from interactors.scene import SceneChoice
+from interface.state_machine import StateMachine
+from interface.pixel.presenter import PixelPresenter
+from interface.pixel.render_model import PixelVector
+from interface.pixel.asset_config import load_asset_map
 from interface.pixel.controller import PixelController
 from view.pygame_view import PygameView
 
@@ -14,17 +13,18 @@ from view.pygame_view import PygameView
 def main() -> None:
     presenter = PixelPresenter(
         screen_size=PixelVector(800, 600),
-        assets=Assets(  # .from_file?
-            ui={
-                UiGraphic.START_GAME_BUTTON: UiAssetModel(BoxAsset(size=PixelVector(100, 100), color=RGB(0,255,0), text=Text("START")), position=PixelVector(100,100)),
-                UiGraphic.QUIT_GAME_BUTTON: UiAssetModel(BoxAsset(size=PixelVector(100, 100), color=RGB(255,0,0)), position=PixelVector(100,300)),
-            },
-            world={
-                WorldGraphic.PLAYER: WorldAssetModel(ImageAsset(file=Path("assets/wizard.png"), size=PixelVector(100, 100))),
-                WorldGraphic.WALL: WorldAssetModel(BoxAsset(size=PixelVector(100, 100), color=RGB(150,150,0))),
-                WorldGraphic.ORB: WorldAssetModel(BoxAsset(size=PixelVector(75, 75), color=RGB(0,0,255))),
-            }
-        )
+        assets=load_asset_map()
+        # {
+        #     Graphic.START_GAME_BUTTON: BoxAsset(size=PixelVector(100, 100), color=RGB(0,255,0), text=Text("START")),
+        #     Graphic.QUIT_GAME_BUTTON: BoxAsset(size=PixelVector(100, 100), color=RGB(255,0,0)),
+        #     Graphic.PLAYER: ImageAsset(file=Path("assets/wizard.png"), size=PixelVector(100, 100)),
+        #     Graphic.WALL: BoxAsset(size=PixelVector(100, 100), color=RGB(150,150,0)),
+        #     Graphic.ORB: BoxAsset(size=PixelVector(75, 75), color=RGB(0,0,255)),
+        #     Graphic.FIRE_ORB_SLOT: CircleAsset(radius=25, color=RGB(255, 0, 0)),
+        #     Graphic.WATER_ORB_SLOT: CircleAsset(radius=25, color=RGB(0, 0, 255)),
+        #     Graphic.EMPTY_ORB_SLOT: CircleAsset(radius=25, color=RGB(0, 0, 0)),
+        #     Graphic.ORB_SLOT_BACKGROUND: BoxAsset(size=PixelVector(250, 50), color=RGB(0, 100, 100)),
+        # }
     )
 
     world_repository = Level(
