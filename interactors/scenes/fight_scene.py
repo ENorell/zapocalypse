@@ -1,44 +1,48 @@
 import math
+from typing import Optional
 
-from domain.model import WorldVector, Level
-from interactors.presenter_model import PlayerModel, WallModel, OrbModel, OrbSlots
+from domain.model import WorldVector, Level, Player, move
+from interactors.presenter_model import PlayerModel, WallModel, OrbModel, OrbSlots, PresenterModel
 from interactors.scene import Scene, Presenter, UserInput
 
 
-def input_direction(user_input: UserInput) -> WorldVector:
+def _get_move_target(player: Player, user_input: UserInput) -> Optional[WorldVector]:
     x = user_input.right - user_input.left
     y = user_input.down - user_input.up
-    magnitude = math.hypot(x,y)
-    return magnitude and WorldVector(
-        x/magnitude,
-        y/magnitude,
-    ) or WorldVector(0,0)
+    magnitude = math.hypot(x, y)
+    distance = player.get_speed() * user_input.delta_time.total_seconds()
+    if not distance or not magnitude:
+        return None
+    
+    return WorldVector(
+        player.position.x + x * distance / magnitude,
+        player.position.y + y * distance / magnitude,
+    )
 
 
 class FightScene(Scene):
-    def __init__(self, presenter: Presenter, world_repository: Level):
-        self.level = world_repository
+    def __init__(self, presenter: Presenter, player: Player, level: Level):
         self._presenter = presenter
+        self._level = level
+        self._player = player
 
     def update(self, user_input: UserInput) -> None:
-
-        player = self.level.player
-        distance = player.get_speed() * user_input.delta_time.total_seconds()
-        
-        self.level.push_player(direction=input_direction(user_input), distance=distance)
-        if pickup_effect := self.level.can_pickup_orb():
-            self.level.do_pickup_orb()
+        if move_target := _get_move_target(self._player, user_input):
+            move(self._player, move_target, self._level)
 
         self._presenter.draw([
-            PlayerModel(id(player), position=player.position),
-            *(
-                WallModel(id(wall), position=wall.position)
-                for wall in self.level.get_walls()
-            ),
-            *(
-                OrbModel(id(orb), element=orb.element, position=orb.position)
-                for orb in self.level.get_orbs()
-            ),
-            OrbSlots(list(player._elements))
+            PlayerModel(id(self._player), position=self._player.position),
+            *self._get_level_presenter_models(),
+            OrbSlots(self._player.elements)
         ])
         
+    def _get_level_presenter_models(self) -> list[PresenterModel]:
+        wall_models = [
+            WallModel(id(wall), position=wall.position)
+            for wall in self._level.walls
+        ]
+        orb_models = [
+            OrbModel(id(orb), element=orb.element, position=orb.position)
+            for orb in self._level.orbs
+        ]
+        return wall_models + orb_models

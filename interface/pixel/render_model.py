@@ -44,7 +44,7 @@ class CircleAsset:
     radius: int
     color: RGB
 
-Asset = ImageAsset | BoxAsset
+Asset = ImageAsset | BoxAsset | CircleAsset
 
 
 @dataclass
