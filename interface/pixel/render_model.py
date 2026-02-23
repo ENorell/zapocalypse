@@ -44,12 +44,13 @@ class CircleAsset:
     radius: int
     color: RGB
 
-Asset = ImageAsset | BoxAsset
+Asset = ImageAsset | BoxAsset | CircleAsset 
 
 
 @dataclass
 class RenderModel:
     position: PixelVector
     asset: Asset
-    id: Optional[int] = None
+    id: int = 0 # Om denna är optional och kan vara None måste DeviceEvent event_ids också kunna ta None samt kan inte get_hovered_ids i pygame_view endast returna list -- Att diskutera?
     rotation: int = 0
+    layer: int = 0

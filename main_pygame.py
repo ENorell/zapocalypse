@@ -1,4 +1,4 @@
-from domain.model import Player, WorldVector, Level, Wall
+from domain.models import Player, WorldVector, Level, Wall, WallType
 from interactors.scenes.start_menu import StartMenu
 from interactors.scenes.fight_scene import FightScene
 from interactors.scene import SceneChoice
@@ -29,10 +29,9 @@ def main() -> None:
 
     world_repository = Level(
         Player(position=WorldVector(0, 0)),
-        [Wall(WorldVector(5, 5))],
+        [Wall(WallType.STONE, WorldVector(5, 5))],
         []
     )
-    world_repository.spawn_orb()
 
     state_machine = StateMachine(
         scenes={
