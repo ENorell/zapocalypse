@@ -18,6 +18,7 @@ def _get_move_target(player: Player, user_input: UserInput) -> Optional[WorldVec
     return WorldVector(
         player.position.x + x * distance / magnitude,
         player.position.y + y * distance / magnitude,
+        player.position.z
     )
 
 
@@ -43,7 +44,7 @@ class FightScene(Scene):
         
     def _get_level_presenter_models(self) -> Sequence[PresenterModel]:
         wall_models = [
-            WallModel(id(wall), position=wall.position)
+            WallModel(id(wall), wall_type=wall.wall_type, position=wall.position)
             for wall in self._level.walls
         ]
         orb_models = [

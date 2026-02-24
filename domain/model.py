@@ -13,6 +13,7 @@ import domain.events as events
 class WorldVector(NamedTuple):
     x: float
     y: float
+    z: float = 0.0
 
 
 class Element(Enum):
@@ -83,7 +84,7 @@ class Level:
         return next(
             (
                 orb for orb in self._orbs
-                if math.dist(orb.position, target) < 1
+                if math.dist(orb.position[:2], target[:2]) < 1
             ),
             None
         )
