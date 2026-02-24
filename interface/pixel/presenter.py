@@ -1,6 +1,6 @@
 from typing import Optional
 
-from domain.models import WorldVector, Element  # Red flag?
+from domain.model import WorldVector, Element  # Red flag?
 from interactors.presenter_model import PresenterModel, OrbSlots, PlayerModel, OrbModel, StartButton, QuitButton, \
     WallModel
 from interface.pixel.render_model import PixelVector, RenderModel, Asset
