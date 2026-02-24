@@ -1,4 +1,4 @@
-from domain.model import Player, WorldVector, Level, Wall, ElementOrb, Element
+from domain.models import Player, WorldVector, Level, Wall, WallType
 from interactors.scenes.start_menu import StartMenu
 from interactors.scenes.fight_scene import FightScene
 from interactors.scene import SceneChoice
@@ -16,6 +16,10 @@ def main() -> None:
         assets=load_asset_map()
     )
 
+    world_repository = Level(
+        Player(position=WorldVector(0, 0)),
+        [Wall(WallType.STONE, WorldVector(5, 5))],
+        []
     player = Player(position=WorldVector(0, 0))
     level = Level(
         [Wall(WorldVector(5, 5))],

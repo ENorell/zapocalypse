@@ -73,8 +73,8 @@ class PygameView:
         except StopGame:
             self._is_running = False
 
-    def _get_hovered_ids(self) -> list[int]:
-        result = []
+    def _get_hovered_ids(self) -> list[int]: # Om rendermodel är satt till None måste denna också kunna ta None
+        result: list[int] = []
         for model in self._presenter.render_models:
             match model.asset:
                 case BoxAsset(size, _):

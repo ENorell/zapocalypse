@@ -2,7 +2,7 @@ from typing import Optional
 from dataclasses import dataclass
 from abc import ABC
 
-from domain.model import Element, WorldVector
+from domain.models import Element, WorldVector
 
 
 class PresenterModel(ABC): ...

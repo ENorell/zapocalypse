@@ -1,6 +1,6 @@
 from typing import Optional
 
-from domain.model import WorldVector, Element  # Red flag?
+from domain.models import WorldVector, Element  # Red flag?
 from interactors.presenter_model import PresenterModel, OrbSlots, PlayerModel, OrbModel, StartButton, QuitButton, \
     WallModel
 from interface.pixel.render_model import PixelVector, RenderModel, Asset
@@ -34,21 +34,23 @@ class PixelPresenter:
         for presenter_model in presenter_models:
             render_models = self._get_render_models(presenter_model)
             self.render_models.extend(render_models)
+        
+        self.render_models.sort(key=lambda x: x.layer)
 
     def _get_render_models(self, presenter_model: PresenterModel) -> list[RenderModel]:
         match presenter_model:
             case PlayerModel(id_, position):
-                return [self._draw_world_entity(id_, position, Graphic.PLAYER)]
+                return [self._draw_world_entity(id_, position, Graphic.PLAYER, 1)]
             case OrbModel(id_, position, element):
-                return [self._draw_world_entity(id_, position, _get_element_graphic(element))]
+                return [self._draw_world_entity(id_, position, _get_element_graphic(element), 1)]
             case WallModel(id_, position):
-                return [self._draw_world_entity(id_, position, Graphic.WALL)]
+                return [self._draw_world_entity(id_, position, Graphic.WALL, 1)]
             case OrbSlots(orbs):
-                return _draw_orb_ui(self._assets, orbs)
+                return _draw_orb_ui(self._assets, orbs, 100)
             case StartButton(id_):
-                return [_draw_start_button(self._assets, id_)]
+                return [_draw_start_button(self._assets, id_, 100)]
             case QuitButton(id_):
-                return [_draw_quit_button(self._assets, id_)]
+                return [_draw_quit_button(self._assets, id_, 100)]
             case _:
                 raise UnknownModelType(f"Cannot recognize model {type(presenter_model)}")
     
@@ -58,32 +60,35 @@ class PixelPresenter:
         except KeyError:
             raise MissingAssetError(f"No asset found for graphic {graphic}")
 
-    def _draw_world_entity(self, id_: int, position: WorldVector, graphic: Graphic) -> RenderModel:
+    def _draw_world_entity(self, id_: int, position: WorldVector, graphic: Graphic, layer: int) -> RenderModel:
         pixel_position = transform_world_to_pixel(position)
         asset = self._get_asset(graphic)
 
         return RenderModel(
             id=id_,
             position=pixel_position,
-            asset=asset
+            asset=asset,
+            layer=layer
         )
 
 
-def _draw_start_button(assets: dict[Graphic, Asset], id_: int) -> RenderModel:
+def _draw_start_button(assets: dict[Graphic, Asset], id_: int, layer: int) -> RenderModel:
     start_button_top_left_position = PixelVector(100,200)
     return RenderModel(
         id=id_,
         position=start_button_top_left_position,
-        asset=assets[Graphic.START_GAME_BUTTON]
+        asset=assets[Graphic.START_GAME_BUTTON],
+        layer=layer
     )
 
 
-def _draw_quit_button(assets: dict[Graphic, Asset], id_: int) -> RenderModel:
+def _draw_quit_button(assets: dict[Graphic, Asset], id_: int, layer: int) -> RenderModel:
     quit_button_top_left_position = PixelVector(100,400)
     return RenderModel(
         id=id_,
         position=quit_button_top_left_position,
-        asset=assets[Graphic.QUIT_GAME_BUTTON]
+        asset=assets[Graphic.QUIT_GAME_BUTTON],
+        layer=layer
     )
 
 def _get_element_graphic(element: Optional[Element]) -> Graphic:
@@ -98,7 +103,7 @@ def _get_element_graphic(element: Optional[Element]) -> Graphic:
         case _: raise ValueError(f"Unknown Element {element}")
 
 
-def _draw_orb_ui(assets: dict[Graphic, Asset], elements: list[Optional[Element]]) -> list[RenderModel]:
+def _draw_orb_ui(assets: dict[Graphic, Asset], elements: list[Optional[Element]], layer: int) -> list[RenderModel]:
     result = []
 
     slot_background_asset = assets[Graphic.ORB_SLOT_BACKGROUND]
@@ -110,6 +115,7 @@ def _draw_orb_ui(assets: dict[Graphic, Asset], elements: list[Optional[Element]]
         result.append(RenderModel(
             position=PixelVector(*position),
             asset=assets[graphic],
+            layer=layer
             #SIZE?
         ))
     return result

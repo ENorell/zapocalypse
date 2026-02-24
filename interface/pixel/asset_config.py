@@ -31,6 +31,7 @@ def load_asset_map() -> dict[Graphic, Asset]:
         Graphic.WATER_ORB_SLOT: CircleAsset(radius=25, color=RGB(0, 0, 255)),
         Graphic.ROOT_ORB_SLOT: CircleAsset(radius=25, color=RGB(255, 0, 255)),
         Graphic.THUNDER_ORB_SLOT: CircleAsset(radius=25, color=RGB(255, 250, 100)),
+        Graphic.WIND_ORB_SLOT: CircleAsset(radius=25, color=RGB(135, 206, 235)),
         Graphic.EMPTY_ORB_SLOT: CircleAsset(radius=25, color=RGB(0, 0, 0)),
         Graphic.ORB_SLOT_BACKGROUND: BoxAsset(size=PixelVector(250, 50), color=RGB(0, 100, 100)),
     }

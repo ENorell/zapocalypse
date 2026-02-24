@@ -1,8 +1,8 @@
 import math
 from typing import Optional
 
-from domain.model import WorldVector, Level, Player, move
-from interactors.presenter_model import PlayerModel, WallModel, OrbModel, OrbSlots, PresenterModel
+from domain.models import WorldVector, Level
+from interactors.presenter_model import PlayerModel, WallModel, OrbModel, OrbSlots
 from interactors.scene import Scene, Presenter, UserInput
 
 
@@ -25,6 +25,10 @@ class FightScene(Scene):
         self._presenter = presenter
         self._level = level
         self._player = player
+
+    def start(self) -> None:
+        for _ in range(5):
+            self.level.spawn_orb_in_free_position(7, 7)
 
     def update(self, user_input: UserInput) -> None:
         if move_target := _get_move_target(self._player, user_input):
