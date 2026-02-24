@@ -53,4 +53,4 @@ class RenderModel:
     asset: Asset
     id: int = 0 # Om denna är optional och kan vara None måste DeviceEvent event_ids också kunna ta None samt kan inte get_hovered_ids i pygame_view endast returna list -- Att diskutera?
     rotation: int = 0
-    layer: int = 0
+    z_position: float = 0.0

@@ -1,8 +1,9 @@
 import math
-from typing import Optional
+from typing import Optional, Sequence
 
-from domain.models import WorldVector, Level
-from interactors.presenter_model import PlayerModel, WallModel, OrbModel, OrbSlots
+
+from domain.model import WorldVector, Level, Player, move
+from interactors.presenter_model import PlayerModel, WallModel, OrbModel, OrbSlots, PresenterModel
 from interactors.scene import Scene, Presenter, UserInput
 
 
@@ -17,6 +18,7 @@ def _get_move_target(player: Player, user_input: UserInput) -> Optional[WorldVec
     return WorldVector(
         player.position.x + x * distance / magnitude,
         player.position.y + y * distance / magnitude,
+        player.position.z
     )
 
 
@@ -28,7 +30,7 @@ class FightScene(Scene):
 
     def start(self) -> None:
         for _ in range(5):
-            self.level.spawn_orb_in_free_position(7, 7)
+            self._level.spawn_orb_in_free_position(7, 7)
 
     def update(self, user_input: UserInput) -> None:
         if move_target := _get_move_target(self._player, user_input):
@@ -40,9 +42,9 @@ class FightScene(Scene):
             OrbSlots(self._player.elements)
         ])
         
-    def _get_level_presenter_models(self) -> list[PresenterModel]:
+    def _get_level_presenter_models(self) -> Sequence[PresenterModel]:
         wall_models = [
-            WallModel(id(wall), position=wall.position)
+            WallModel(id(wall), wall_type=wall.wall_type, position=wall.position)
             for wall in self._level.walls
         ]
         orb_models = [

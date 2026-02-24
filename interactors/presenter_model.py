@@ -2,7 +2,7 @@ from typing import Optional
 from dataclasses import dataclass
 from abc import ABC
 
-from domain.models import Element, WorldVector
+from domain.model import Element, WallType, WorldVector
 
 
 class PresenterModel(ABC): ...
@@ -26,7 +26,8 @@ class WorldPresenterModel(PresenterModel, ABC):
 class PlayerModel(WorldPresenterModel): ...
 
 @dataclass(frozen=True)
-class WallModel(WorldPresenterModel): ...
+class WallModel(WorldPresenterModel):
+    wall_type: WallType
 
 @dataclass(frozen=True)
 class OrbModel(WorldPresenterModel):
