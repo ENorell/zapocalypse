@@ -2,7 +2,7 @@ import math
 from typing import Optional, Sequence
 
 
-from domain.model import WorldVector, Level, Player, move
+from domain.model import WorldVector, Level, Player, ElementOrb, Wall, move
 from interactors.presenter_model import PlayerModel, WallModel, OrbModel, OrbSlots, PresenterModel
 from interactors.scene import Scene, Presenter, UserInput
 
@@ -30,7 +30,7 @@ class FightScene(Scene):
 
     def start(self) -> None:
         for _ in range(5):
-            self._level.spawn_orb_in_free_position(7, 7)
+            self._level.spawn_orb(1)
 
     def update(self, user_input: UserInput) -> None:
         if move_target := _get_move_target(self._player, user_input):
