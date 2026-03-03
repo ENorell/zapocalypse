@@ -1,8 +1,8 @@
 import math
-from typing import Optional, Sequence
+from typing import Optional
 
 
-from domain.model import WorldVector, Level, Player, ElementOrb, Wall, move
+from domain.model import WorldVector, Level, Player, move
 from interactors.presenter_model import PlayerModel, WallModel, OrbModel, OrbSlots, PresenterModel
 from interactors.scene import Scene, Presenter, UserInput
 
@@ -42,12 +42,12 @@ class FightScene(Scene):
             OrbSlots(self._player.elements)
         ])
         
-    def _get_level_presenter_models(self) -> Sequence[PresenterModel]:
-        wall_models = [
+    def _get_level_presenter_models(self) -> list[PresenterModel]:
+        wall_models: list[PresenterModel] = [
             WallModel(id(wall), wall_type=wall.wall_type, position=wall.position)
             for wall in self._level.walls
         ]
-        orb_models = [
+        orb_models: list[PresenterModel] = [
             OrbModel(id(orb), element=orb.element, position=orb.position)
             for orb in self._level.orbs
         ]

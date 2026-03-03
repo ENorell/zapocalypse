@@ -1,4 +1,4 @@
-from typing import NamedTuple, Protocol, Optional, Sequence
+from typing import NamedTuple, Protocol, Optional
 from enum import Enum, auto
 from dataclasses import dataclass
 from collections import deque
@@ -76,7 +76,7 @@ class Level:
         return list(self._orbs)
     
     @property
-    def objects(self) -> Sequence[HasPosition]:
+    def objects(self) -> list[HasPosition]:
         return self.walls + self.orbs
 
     def free_spawn_positions(self, z_position: float) -> list[WorldVector]:
