@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Sequence
 from dataclasses import dataclass
 from abc import ABC
 
@@ -35,7 +35,7 @@ class OrbModel(WorldPresenterModel):
 
 @dataclass(frozen=True)
 class OrbSlots(PresenterModel):
-    elements: list[Optional[Element]]
+    elements: Sequence[Optional[Element]]
 
 @dataclass(frozen=True)
 class StartButton(ButtonPresenterModel): ...

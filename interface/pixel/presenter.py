@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Sequence
 
 from domain.model import WorldVector, Element, WallType  # Red flag?
 from interactors.presenter_model import PresenterModel, OrbSlots, PlayerModel, OrbModel, StartButton, QuitButton, \
@@ -12,7 +12,6 @@ class PresenterError(Exception): ...
 class MissingAssetError(PresenterError): pass
 
 class UnknownModelType(PresenterError): pass
-
 
 
 def transform_world_to_pixel(world_coordinate: WorldVector) -> PixelVector:
@@ -110,11 +109,15 @@ def _get_wall_graphic(wall_type: Optional[WallType]) -> Graphic:
         case None:          return Graphic.EMPTY_ORB_SLOT
         case _: raise ValueError(f"Unknown Wall {wall_type}")
 
-def _draw_orb_ui(assets: dict[Graphic, Asset], elements: list[Optional[Element]], z_position: float) -> list[RenderModel]:
+def _draw_orb_ui(assets: dict[Graphic, Asset], elements: Sequence[Optional[Element]], z_position: float) -> list[RenderModel]:
     result = []
 
     slot_background_asset = assets[Graphic.ORB_SLOT_BACKGROUND]
-    result.append(RenderModel(position=PixelVector(500, 0), asset=slot_background_asset))
+    result.append(RenderModel(
+        position=PixelVector(500, 0), 
+        asset=slot_background_asset, 
+        z_position=99
+    ))
 
     for element, position in zip(elements, [(550, 25), (600, 25), (650, 25)]): # TODO dynamic scaling to any resolution
         graphic = _get_element_graphic(element)
