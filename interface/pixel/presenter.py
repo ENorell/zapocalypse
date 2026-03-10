@@ -14,7 +14,6 @@ class MissingAssetError(PresenterError): pass
 class UnknownModelType(PresenterError): pass
 
 
-
 def transform_world_to_pixel(world_coordinate: WorldVector) -> PixelVector:
     x, y, _ = world_coordinate
     return PixelVector(round(100*x), round(100*y))
@@ -110,7 +109,7 @@ def _get_wall_graphic(wall_type: Optional[WallType]) -> Graphic:
         case None:          return Graphic.EMPTY_ORB_SLOT
         case _: raise ValueError(f"Unknown Wall {wall_type}")
 
-def _draw_orb_ui(assets: dict[Graphic, Asset], elements: list[Optional[Element]], z_position: float) -> list[RenderModel]:
+def _draw_orb_ui(assets: dict[Graphic, Asset], elements: Sequence[Optional[Element]], z_position: float) -> list[RenderModel]:
     result = []
 
     slot_background_asset = assets[Graphic.ORB_SLOT_BACKGROUND]

@@ -22,15 +22,17 @@ class Element(Enum):
     ROOT = auto()
     THUNDER = auto()
 
-class HasPosition(Protocol):
+class PhysicalObject(Protocol):
+    @property
+    def stackable(self) -> bool: ...
     @property
     def position(self) -> WorldVector: ...
 
 @dataclass(frozen=True)
-class ElementOrb:
+class ElementOrb():
     element: Element
     position: WorldVector
-    not_stackable = True
+    stackable = False
 
 class WallType(Enum):
     BUSH = auto()
@@ -40,6 +42,7 @@ class WallType(Enum):
 class Wall():
     wall_type: WallType
     position: WorldVector
+    stackable = False
 
 class Player:
     base_run_speed = 8
@@ -74,13 +77,11 @@ class Level:
     @property
     def orbs(self) -> list[ElementOrb]:
         return list(self._orbs)
-    
-    @property
-    def objects(self) -> list[HasPosition]:
-        return self.walls + self.orbs
 
     def free_spawn_positions(self, z_position: float) -> list[WorldVector]:
-        occupied_positions = {(obj.position.x, obj.position.y) for obj in self.objects if obj.position.z == z_position}
+
+        physical_objects = self.orbs + self.walls
+        occupied_positions = {(obj.position.x, obj.position.y) for obj in physical_objects if obj.position.z == z_position}
 
         free_positions = [
             WorldVector(x, y, z_position)
@@ -150,15 +151,11 @@ def move(player: Player, target: WorldVector, level: Level) -> None:
 
     player.position = target
 
-
-
-
 class Spell(ABC):
     #@abstractmethod
     def execute(self) -> None: ...
 
 class FireStorm(Spell): ...
-
 
 spell_book = {
     # (Element.FIRE, Element.WIND, Element.THUNDER): "fire storm",
