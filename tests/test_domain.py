@@ -45,3 +45,9 @@ class TestSpells(TestCase):
             FireStorm
         )
     
+class TestTraverseTile(TestCase):
+    def test_traverse_tile(self):
+        player = Player(WorldVector(1, 1))
+        level = Level([Wall(WorldVector(2, 1))])
+
+        move(player, WorldVector(1, 2), level)

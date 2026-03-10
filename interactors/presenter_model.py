@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from abc import ABC
 
 from domain.model import Element, WallType, WorldVector
+from domain.spawning_system import TileType
 
 
 class PresenterModel(ABC): ...
@@ -28,6 +29,10 @@ class PlayerModel(WorldPresenterModel): ...
 @dataclass(frozen=True)
 class WallModel(WorldPresenterModel):
     wall_type: WallType
+
+@dataclass(frozen=True)
+class TileModel(WorldPresenterModel):
+    tile: TileType
 
 @dataclass(frozen=True)
 class OrbModel(WorldPresenterModel):

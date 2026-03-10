@@ -8,6 +8,7 @@ import random
 from abc import ABC, abstractmethod
 
 import domain.events as events
+import domain.spawning_system as spawning
 
 class WorldVector(NamedTuple):
     x: float
@@ -65,8 +66,9 @@ class Player:
         self._elements.appendleft(element)
 
 class Level:
-    def __init__(self, walls: list[Wall], orbs: Optional[list[ElementOrb]] = None):
-        self._walls = walls
+    def __init__(self, walls: list[Wall], tiles: list[spawning.Tile], orbs: Optional[list[ElementOrb]] = None):
+        self._tiles: list[spawning.Tile] = tiles or [] 
+        self._walls: list[Wall] = walls or []
         self._orbs: list[ElementOrb] = orbs or []
         self.events: list[events.Event] = []
 
@@ -77,6 +79,10 @@ class Level:
     @property
     def orbs(self) -> list[ElementOrb]:
         return list(self._orbs)
+
+    @property
+    def tiles(self) -> list[spawning.Tile]:
+        return list(self._tiles)
 
     def free_spawn_positions(self, z_position: float) -> list[WorldVector]:
 
@@ -91,6 +97,13 @@ class Level:
         ]
 
         return free_positions
+
+    def spawn_tile(self, orb_position_z: float) -> None:
+        self._tiles.append(
+            spawning.WaterTile(
+                position=random.choice(self.free_spawn_positions(orb_position_z)),
+            )
+        )
 
     def collides_with_wall(self, target: WorldVector) -> bool:
         return any(

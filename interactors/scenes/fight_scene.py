@@ -3,7 +3,8 @@ from typing import Optional
 
 
 from domain.model import WorldVector, Level, Player, move
-from interactors.presenter_model import PlayerModel, WallModel, OrbModel, OrbSlots, PresenterModel
+
+from interactors.presenter_model import PlayerModel, WallModel, OrbModel, OrbSlots, PresenterModel, TileModel
 from interactors.scene import Scene, Presenter, UserInput
 
 
@@ -31,6 +32,8 @@ class FightScene(Scene):
     def start(self) -> None:
         for _ in range(5):
             self._level.spawn_orb(1)
+        for _ in range(3):
+            self._level.spawn_tile(1)
 
     def update(self, user_input: UserInput) -> None:
         if move_target := _get_move_target(self._player, user_input):
@@ -51,4 +54,8 @@ class FightScene(Scene):
             OrbModel(id(orb), element=orb.element, position=orb.position)
             for orb in self._level.orbs
         ]
-        return wall_models + orb_models
+        tile_models: list[PresenterModel] = [
+            TileModel(id(tile), tile=tile.tile_name, position=tile.position)
+            for tile in self._level.tiles
+        ]
+        return wall_models + orb_models + tile_models
