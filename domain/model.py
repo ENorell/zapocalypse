@@ -8,13 +8,80 @@ import random
 from abc import ABC, abstractmethod
 
 import domain.events as events
-import domain.spawning_system as spawning
 
 class WorldVector(NamedTuple):
     x: float
     y: float
     z: float = 0.0
 
+class MoveType(Enum):
+    DEFAULT = auto()
+    WALK = auto()
+    FLY = auto()
+    SWIM = auto()
+
+class MovableEntity(Protocol):
+    def get_move_speed(self) -> float:
+        ...
+
+    def add_move_type(self, move_type: MoveType):
+        ...
+
+    @property
+    def move_types(self) -> set[MoveType]: ...
+
+class TileType(Enum):
+    WATER = auto()
+    FIRE = auto()
+    WALL = auto()
+    GRASS = auto()
+
+class TraversalRule(Protocol):
+    def can_traverse(self, movable_entity: MovableEntity) -> bool: ...
+
+class MoveTypeTraversalRule:
+    def __init__(self, allowed_move_types: set[MoveType]):
+        self.allowed_move_types = allowed_move_types
+        
+    def can_traverse(self, movable_entity: MovableEntity) -> bool: 
+        if self.allowed_move_types & movable_entity.move_types:
+            return True
+        return False
+
+class DefaultTraversalRule:
+    def can_traverse(self, movable_entity: MovableEntity) -> bool:
+        return True
+    
+class NoTraverseTraversalRule:
+    def can_traverse(self, movable_entity: MovableEntity) -> bool:
+        return False
+
+class TraversalEffect(Protocol):
+    def on_enter(self) -> None: ...
+    def on_traverse(self) -> None: ...
+    def on_exit(self) -> None: ...
+
+class NoTraversalEffect:
+    def on_enter(self) -> None: ...
+    def on_traverse(self) -> None: ...
+    def on_exit(self) -> None: ...
+        
+class SpeedTraversalEffect:
+    def on_enter(self) -> None: ...
+    def on_traverse(self) -> None: ...
+    def on_exit(self) -> None: ...
+
+class DamageTraversalEffect:
+    def on_enter(self) -> None: ...
+    def on_traverse(self) -> None: ...
+    def on_exit(self) -> None: ...
+
+class Tile():
+    def __init__(self, tile_type: TileType, position: WorldVector, traversal_rule: TraversalRule, traversal_effect: TraversalEffect):
+        self.tile_type = tile_type
+        self.position = position
+        self.traversal_rule = traversal_rule
+        self.traversal_effect = traversal_effect
 
 class Element(Enum):
     FIRE = auto()
@@ -45,29 +112,43 @@ class Wall():
     position: WorldVector
     stackable = False
 
+
+
 class Player:
-    base_run_speed = 8
+    base_move_speed = 8
     max_no_elements = 3
-    def __init__(self, position: WorldVector, elements: Optional[list[Element]] = None) -> None:
+    max_no_move_types = 2
+    def __init__(self, position: WorldVector, elements: Optional[list[Element]] = None, move_types: Optional[list[MoveType]] = None) -> None:
         #health
         self.position = position
         self._elements = deque(elements or [], self.max_no_elements)
         self.events: list[events.Event] = []
-
-    def get_speed(self) -> float:
-        """Return speed after effects etc."""
-        return self.base_run_speed
+        self._move_types = deque(move_types or [], self.max_no_move_types)
 
     @property
     def elements(self) -> list[Element]:
         return list(self._elements)
 
+    @property
+    def move_types(self) -> set[MoveType]:
+        return set(self._move_types)
+
+    def get_move_speed(self) -> float:
+        """Return speed after effects etc."""
+        return self.base_move_speed
+    
+    def add_move_type(self, move_type: MoveType):
+        return self._move_types.appendleft(move_type)
+    
+    def remove_move_type(self, move_type: MoveType):
+        return self._move_types.remove(move_type)
+
     def give_element(self, element: Element):
         self._elements.appendleft(element)
 
 class Level:
-    def __init__(self, walls: list[Wall], tiles: list[spawning.Tile], orbs: Optional[list[ElementOrb]] = None):
-        self._tiles: list[spawning.Tile] = tiles or [] 
+    def __init__(self, walls: list[Wall], tiles: list[Tile], orbs: Optional[list[ElementOrb]] = None):
+        self._tiles: list[Tile] = tiles or [] 
         self._walls: list[Wall] = walls or []
         self._orbs: list[ElementOrb] = orbs or []
         self.events: list[events.Event] = []
@@ -81,7 +162,7 @@ class Level:
         return list(self._orbs)
 
     @property
-    def tiles(self) -> list[spawning.Tile]:
+    def tiles(self) -> list[Tile]:
         return list(self._tiles)
 
     def free_spawn_positions(self, z_position: float) -> list[WorldVector]:
@@ -98,11 +179,13 @@ class Level:
 
         return free_positions
 
-    def spawn_tile(self, orb_position_z: float) -> None:
-        self._tiles.append(
-            spawning.WaterTile(
-                position=random.choice(self.free_spawn_positions(orb_position_z)),
-            )
+    def spawn_tile(self, tile: Tile) -> None:
+        self._tiles.append(tile)
+
+    def touches_tile(self, target: WorldVector, player: Player) -> bool:
+        return any(
+            math.dist(touching_tile.position, target) < 1
+            for touching_tile in self._tiles if not touching_tile.traversal_rule.can_traverse(movable_entity = player)
         )
 
     def collides_with_wall(self, target: WorldVector) -> bool:
@@ -154,6 +237,10 @@ class Level:
 
 def move(player: Player, target: WorldVector, level: Level) -> None:
     if level.collides_with_wall(target):
+        player.events.append(events.Collision())
+        return
+    
+    if level.touches_tile(target, player):
         player.events.append(events.Collision())
         return
 

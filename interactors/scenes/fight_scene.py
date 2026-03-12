@@ -12,7 +12,7 @@ def _get_move_target(player: Player, user_input: UserInput) -> Optional[WorldVec
     x = user_input.right - user_input.left
     y = user_input.down - user_input.up
     magnitude = math.hypot(x, y)
-    distance = player.get_speed() * user_input.delta_time.total_seconds()
+    distance = player.get_move_speed() * user_input.delta_time.total_seconds()
     if not distance or not magnitude:
         return None
     
@@ -32,8 +32,6 @@ class FightScene(Scene):
     def start(self) -> None:
         for _ in range(5):
             self._level.spawn_orb(1)
-        for _ in range(3):
-            self._level.spawn_tile(1)
 
     def update(self, user_input: UserInput) -> None:
         if move_target := _get_move_target(self._player, user_input):
@@ -55,7 +53,7 @@ class FightScene(Scene):
             for orb in self._level.orbs
         ]
         tile_models: list[PresenterModel] = [
-            TileModel(id(tile), tile=tile.tile_name, position=tile.position)
+            TileModel(id(tile), position=tile.position, tile=tile.tile_type)
             for tile in self._level.tiles
         ]
         return wall_models + orb_models + tile_models

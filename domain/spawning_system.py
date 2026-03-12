@@ -6,9 +6,10 @@ from datetime import timedelta
 import math
 import random
 from abc import ABC, abstractmethod
-from domain.model import WorldVector, Player
+from domain.model import WorldVector, MovableEntity, MoveType
 
 import domain.events as events
+
 
 class Object(Protocol):
     ...
@@ -19,46 +20,59 @@ class TileType(Enum):
     WALL = auto()
 
 class TraversalRule(Protocol):
-    def try_traverse(self, player: Player) -> bool: ...
+    def can_traverse(self, movable_entity: MovableEntity) -> bool: ...
 
 class DefaultTraversalRule:
-    def try_traverse(self, player: Player) -> bool:
+    def can_traverse(self, movable_entity: MovableEntity) -> bool:
         return True
     
 class NoTraverseTraversalRule: 
-    def try_traverse(self, player: Player) -> bool:
+    def can_traverse(self, movable_entity: MovableEntity) -> bool:
         return False
 
 class FlyTraversalRule:
-    def try_traverse(self, player: Player) -> bool:
+    def can_traverse(self, movable_entity: MovableEntity) -> bool:
+        if MoveType.FLY in movable_entity.move_types:
+            return True
         return False
 
 class TraversalEffect(Protocol):
-    def on_enter(self): ...
-    def on_traverse(self): ...
-    def on_exit(self): ...
+    def on_enter(self) -> None: ...
+    def on_traverse(self) -> None: ...
+    def on_exit(self) -> None: ...
+
+class NoTraversalEffect:
+    def on_enter(self) -> None: ...
+    def on_traverse(self) -> None: ...
+    def on_exit(self) -> None: ...
         
 class SpeedTraversalEffect:
-    def __init__(self):
-        ...
-        
-    def on_enter(self): ...
-    def on_traverse(self): ...
-    def on_exit(self): ...
+    def on_enter(self) -> None: ...
+    def on_traverse(self) -> None: ...
+    def on_exit(self) -> None: ...
 
 class DamageTraversalEffect:
     def __init__(self): ...
 
 class Tile(Protocol):
-    tile_name: TileType
+    tile_name: str
+    tile_type: TileType
     position: WorldVector
+    traversal_rule: TraversalRule
+    traversal_effect: TraversalEffect
 
-    def traversing_object(self, object: Object):
-        ...
+class WallTile:
+    def __init__(self, tile_name: str, position: WorldVector, traversal_rule: TraversalRule, traversal_effect: TraversalEffect):
+        self.tile_name = tile_name
+        self.tile_type = TileType.WALL
+        self.position = position
+        self.traversal_rule = traversal_rule
+        self.traversal_effect = traversal_effect
 
 class WaterTile:
-    def __init__(self, position: WorldVector, traversal_rule = TraversalRule, traversal_effect = TraversalEffect):
-        self.tile_name = TileType.WATER
+    def __init__(self, tile_name: str, position: WorldVector, traversal_rule: TraversalRule, traversal_effect: TraversalEffect):
+        self.tile_name = tile_name
+        self.tile_type = TileType.WATER
         self.position = position
-
-    def traversing_object(self, object: Object): ...
+        self.traversal_rule = traversal_rule
+        self.traversal_effect = traversal_effect

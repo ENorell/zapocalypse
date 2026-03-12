@@ -2,9 +2,7 @@ from typing import Optional, Sequence
 from dataclasses import dataclass
 from abc import ABC
 
-from domain.model import Element, WallType, WorldVector
-from domain.spawning_system import TileType
-
+from domain.model import Element, WallType, TileType, WorldVector
 
 class PresenterModel(ABC): ...
 
