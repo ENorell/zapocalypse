@@ -7,7 +7,7 @@ import math
 import random
 from abc import ABC, abstractmethod
 
-import domain.events as events
+
 
 class WorldVector(NamedTuple):
     x: float
@@ -29,7 +29,7 @@ class PhysicalObject(Protocol):
     def position(self) -> WorldVector: ...
 
 @dataclass(frozen=True)
-class ElementOrb():
+class ElementOrb:
     element: Element
     position: WorldVector
     stackable = False
@@ -44,6 +44,9 @@ class Wall():
     position: WorldVector
     stackable = False
 
+class Event(ABC): ...
+
+
 class Player:
     base_run_speed = 8
     max_no_elements = 3
@@ -51,7 +54,7 @@ class Player:
         #health
         self.position = position
         self._elements = deque(elements or [], self.max_no_elements)
-        self.events: list[events.Event] = []
+        self.events: list[Event] = []
 
     def get_speed(self) -> float:
         """Return speed after effects etc."""
@@ -68,7 +71,7 @@ class Level:
     def __init__(self, walls: list[Wall], orbs: Optional[list[ElementOrb]] = None):
         self._walls = walls
         self._orbs: list[ElementOrb] = orbs or []
-        self.events: list[events.Event] = []
+        self.events: list[Event] = []
 
     @property
     def walls(self) -> list[Wall]:
@@ -118,26 +121,6 @@ class Level:
             )
         )
 
-    # def get_free_positions(self, object_to_spawn: HasPosition, objects: list[HasPosition]) -> set[tuple]:
-    #     z_position = object.position.z
-
-    #     free_positions: set[WorldVector] = {object.position for object in self_} 
-
-    #     for object in objects:
-    #         if object.not_stackable:
-                # free_positions.add(object.position)
-
-    # def spawn_object_in_free_position(self, object: HasPosition) -> None:
-
-    #     all_free_positions = self.free_spawn_positions(object.position.z)
-
-    #     if not all_free_positions:
-    #         return
-
-    #     position_new_orb = random.choice(all_free_positions)
-        
-    #     self.spawn_orb(position_new_orb)
-
 
 def move(player: Player, target: WorldVector, level: Level) -> None:
     if level.collides_with_wall(target):
@@ -151,20 +134,25 @@ def move(player: Player, target: WorldVector, level: Level) -> None:
 
     player.position = target
 
+
+
+
 class Spell(ABC):
     #@abstractmethod
     def execute(self) -> None: ...
 
 class FireStorm(Spell): ...
+class WaterCanon(Spell): ...
+
 
 spell_book = {
-    # (Element.FIRE, Element.WIND, Element.THUNDER): "fire storm",
-    # (Element.FIRE, Element.FIRE, Element.WIND): "Fire Tornado"
+    (Element.FIRE, Element.WIND, Element.THUNDER): "fire storm",
+    (Element.FIRE, Element.FIRE, Element.WIND): "Fire Tornado",
     (Element.WIND, Element.WIND, Element.FIRE): FireStorm()
 }
 
 def conjure_spell(elements: list[Element]) -> Optional[Spell]:
-    if len(elements) < 3:
-        return None
-    spell_ingredients: tuple[Element, Element, Element] = (elements[0], elements[1], elements[2])
+    spell_ingredients: tuple[Element, Element, Element] = tuple(elements[:3])
     return spell_book.get(spell_ingredients)
+
+

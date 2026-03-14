@@ -1,8 +1,6 @@
 from dataclasses import dataclass
-from abc import ABC
 
-
-class Event(ABC): ...
+from domain.model import Event
 
 
 @dataclass(frozen=True)

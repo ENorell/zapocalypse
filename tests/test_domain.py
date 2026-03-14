@@ -1,7 +1,7 @@
 from unittest import TestCase
 from datetime import timedelta
 
-from domain.model import Player, WorldVector, Wall, Level, ElementOrb, Element, FireStorm, move, conjure_spell
+from domain.model import Player, WorldVector, Wall, Level, ElementOrb, Element, FireStorm, move, conjure_spell, FireBall
 import domain.events as events
 
 
@@ -39,9 +39,19 @@ class TestPickupOrb(TestCase):
 class TestSpells(TestCase):
     def test_create_spell(self):
         elements = [Element.WIND, Element.WIND, Element.FIRE]
+        player = Player(WorldVector(0,0), elements)
         
         self.assertIsInstance(
-            conjure_spell(elements),
+            conjure_spell(player),
             FireStorm
         )
-    
+
+    def test_cast_spell(self):
+        player = Player(WorldVector(0, 0))
+        level = Level(walls=[], orbs=[])
+        spell = FireBall(player)
+
+        spell.cast(level)
+
+        self.assertIn(events.CastedSpell(), player.events)
+        self.assertIn(Projectile(WorldVector(0, 0)), level.projectiles)
