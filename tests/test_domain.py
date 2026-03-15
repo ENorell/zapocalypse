@@ -1,8 +1,10 @@
 from unittest import TestCase
 from datetime import timedelta
 
-from domain.model import Player, WorldVector, Wall, Level, ElementOrb, Element, FireStorm, move, conjure_spell, FireBall
+from domain.model import Player, WorldVector, Wall, Level, ElementOrb, Element, move
+from domain.spell import conjure_spell
 import domain.events as events
+
 
 
 class TestCollisions(TestCase):

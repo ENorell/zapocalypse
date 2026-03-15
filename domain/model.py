@@ -39,7 +39,7 @@ class WallType(Enum):
     STONE = auto()
 
 @dataclass(frozen=True)
-class Wall():
+class Wall:
     wall_type: WallType
     position: WorldVector
     stackable = False
@@ -133,26 +133,4 @@ def move(player: Player, target: WorldVector, level: Level) -> None:
         player.events.append(events.OrbPickup())
 
     player.position = target
-
-
-
-
-class Spell(ABC):
-    #@abstractmethod
-    def execute(self) -> None: ...
-
-class FireStorm(Spell): ...
-class WaterCanon(Spell): ...
-
-
-spell_book = {
-    (Element.FIRE, Element.WIND, Element.THUNDER): "fire storm",
-    (Element.FIRE, Element.FIRE, Element.WIND): "Fire Tornado",
-    (Element.WIND, Element.WIND, Element.FIRE): FireStorm()
-}
-
-def conjure_spell(elements: list[Element]) -> Optional[Spell]:
-    spell_ingredients: tuple[Element, Element, Element] = tuple(elements[:3])
-    return spell_book.get(spell_ingredients)
-
 
