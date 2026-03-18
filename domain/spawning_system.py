@@ -15,7 +15,7 @@ class Spawner(Protocol):
         spawnable.on_spawn() # Tvingande? Inga argument i metoden..
 
 class OrbSpawner():
-    def __init__(self, level: Level, event: Event):
+    def __init__(self, level: Level, event: Optional[Event] = None):
         self.level = level
     
     def _free_spawn_positions(self) -> list[WorldVector]:
@@ -48,6 +48,5 @@ class OrbSpawner():
     def spawn_object(self) -> None:
         spawnable = self.create_object()
         spawnable.on_spawn()
-        # Event?
         self.level.orbs.append(spawnable)
-        self._trigger_spawn_event(spawnable)
+        # self._trigger_spawn_event(spawnable) # Event?

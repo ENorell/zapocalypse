@@ -3,6 +3,7 @@ from typing import Optional
 
 
 from domain.model import WorldVector, Level, Player, move
+from domain.spawning_system import OrbSpawner
 from interactors.presenter_model import PlayerModel, WallModel, OrbModel, OrbSlots, PresenterModel
 from interactors.scene import Scene, Presenter, UserInput
 
@@ -28,7 +29,10 @@ class FightScene(Scene):
         self._player = player
 
     def start(self) -> None:
-        ...
+        spawner = OrbSpawner(self._level)
+        spawner.spawn_object()
+        spawner.spawn_object()
+
 
     def update(self, user_input: UserInput) -> None:
         if move_target := _get_move_target(self._player, user_input):

@@ -6,6 +6,12 @@ class WorldVector(NamedTuple):
     x: float
     y: float
 
+class MovableEntity(Protocol):
+    ...
+
+class Effect(Protocol):
+    ...
+
 class Spawnable(Protocol):
     def on_spawn(self):
         ...
@@ -37,6 +43,40 @@ class Wall():
     def on_spawn(self):
         ...
 
-class Tile():
+class TileType(Enum):
+    WATER = auto()
+    FIRE = auto()
+    WALL = auto()
+
+class TraversalRule(Protocol):
+    def can_traverse(self, movable_entity: MovableEntity) -> bool: ...
+
+class DefaultTraversalRule:
+    def can_traverse(self, movable_entity: MovableEntity) -> bool:
+        return True
+    
+class NoTraverseTraversalRule: 
+    def can_traverse(self, movable_entity: MovableEntity) -> bool:
+        return False
+
+class FlyTraversalRule:
+    def can_traverse(self, movable_entity: MovableEntity) -> bool:
+        # if MoveType.FLY in movable_entity.move_types:
+        #     return True
+        return False
+
+# Ovan kanske ska implementeras på  
+
+class Tile(Protocol):
+    tile_name: str
+    tile_type: TileType
+    position: WorldVector
+    traversal_rule: TraversalRule
+    traversal_effect: Effect
+
+    def on_enter(self) -> None: ...
+    def on_traverse(self) -> None: ...
+    def on_exit(self) -> None: ... 
+
     def on_spawn(self):
         ...
