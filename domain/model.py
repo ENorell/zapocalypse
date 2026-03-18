@@ -8,41 +8,7 @@ import random
 from abc import ABC, abstractmethod
 
 import domain.events as events
-
-class WorldVector(NamedTuple):
-    x: float
-    y: float
-    z: float = 0.0
-
-
-class Element(Enum):
-    FIRE = auto()
-    WATER = auto()
-    WIND = auto()
-    ROOT = auto()
-    THUNDER = auto()
-
-class PhysicalObject(Protocol):
-    @property
-    def stackable(self) -> bool: ...
-    @property
-    def position(self) -> WorldVector: ...
-
-@dataclass(frozen=True)
-class ElementOrb():
-    element: Element
-    position: WorldVector
-    stackable = False
-
-class WallType(Enum):
-    BUSH = auto()
-    STONE = auto()
-
-@dataclass(frozen=True)
-class Wall():
-    wall_type: WallType
-    position: WorldVector
-    stackable = False
+from domain.game_objects import WorldVector, Element, ElementOrb, Wall
 
 class Player:
     base_run_speed = 8
@@ -65,79 +31,36 @@ class Player:
         self._elements.appendleft(element)
 
 class Level:
-    def __init__(self, walls: list[Wall], orbs: Optional[list[ElementOrb]] = None):
-        self._walls = walls
-        self._orbs: list[ElementOrb] = orbs or []
+    def __init__(self):
+        self.walls: list[Wall] = []
+        self.orbs: list[ElementOrb] = []
         self.events: list[events.Event] = []
 
-    @property
-    def walls(self) -> list[Wall]:
-        return list(self._walls)
+    # @property
+    # def walls(self) -> list[Wall]:
+    #     return self.walls
 
-    @property
-    def orbs(self) -> list[ElementOrb]:
-        return list(self._orbs)
-
-    def free_spawn_positions(self, z_position: float) -> list[WorldVector]:
-
-        physical_objects = self.orbs + self.walls
-        occupied_positions = {(obj.position.x, obj.position.y) for obj in physical_objects if obj.position.z == z_position}
-
-        free_positions = [
-            WorldVector(x, y, z_position)
-            for x in range(7)
-            for y in range(8)
-            if (x, y) not in occupied_positions
-        ]
-
-        return free_positions
+    # @property
+    # def orbs(self) -> list[ElementOrb]:
+    #     return self.orbs
 
     def collides_with_wall(self, target: WorldVector) -> bool:
         return any(
             math.dist(collide_entity.position, target) < 1
-            for collide_entity in self._walls
+            for collide_entity in self.walls
         )
 
     def get_touching_orb(self, target: WorldVector) -> Optional[ElementOrb]:
         return next(
             (
-                orb for orb in self._orbs
+                orb for orb in self.orbs
                 if math.dist(orb.position[:2], target[:2]) < 1
             ),
             None
         )
 
     def remove_orb(self, orb: ElementOrb) -> None:
-        self._orbs.remove(orb)
-
-    def spawn_orb(self, orb_position_z: float) -> None:
-        self._orbs.append(
-            ElementOrb(
-                element=random.choice(list(Element)),
-                position=random.choice(self.free_spawn_positions(orb_position_z)),
-            )
-        )
-
-    # def get_free_positions(self, object_to_spawn: HasPosition, objects: list[HasPosition]) -> set[tuple]:
-    #     z_position = object.position.z
-
-    #     free_positions: set[WorldVector] = {object.position for object in self_} 
-
-    #     for object in objects:
-    #         if object.not_stackable:
-                # free_positions.add(object.position)
-
-    # def spawn_object_in_free_position(self, object: HasPosition) -> None:
-
-    #     all_free_positions = self.free_spawn_positions(object.position.z)
-
-    #     if not all_free_positions:
-    #         return
-
-    #     position_new_orb = random.choice(all_free_positions)
-        
-    #     self.spawn_orb(position_new_orb)
-
+        self.orbs.remove(orb)
 
 def move(player: Player, target: WorldVector, level: Level) -> None:
     if level.collides_with_wall(target):

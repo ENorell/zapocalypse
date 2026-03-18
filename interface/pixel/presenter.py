@@ -1,6 +1,6 @@
 from typing import Optional, Sequence
 
-from domain.model import WorldVector, Element, WallType  # Red flag?
+from domain.game_objects import WorldVector, Element, WallType  # Red flag?
 from interactors.presenter_model import PresenterModel, OrbSlots, PlayerModel, OrbModel, StartButton, QuitButton, \
     WallModel
 from interface.pixel.render_model import PixelVector, RenderModel, Asset
@@ -15,7 +15,7 @@ class UnknownModelType(PresenterError): pass
 
 
 def transform_world_to_pixel(world_coordinate: WorldVector) -> PixelVector:
-    x, y, _ = world_coordinate
+    x, y = world_coordinate
     return PixelVector(round(100*x), round(100*y))
 
 

@@ -2,7 +2,7 @@ from typing import Optional, Sequence
 from dataclasses import dataclass
 from abc import ABC
 
-from domain.model import Element, WallType, WorldVector
+from domain.game_objects import Element, WallType, WorldVector
 
 
 class PresenterModel(ABC): ...

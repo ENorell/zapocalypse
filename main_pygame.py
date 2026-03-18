@@ -1,4 +1,4 @@
-from domain.model import Player, WorldVector, Level, Wall, WallType, ElementOrb, Element
+from domain.model import Player, WorldVector, Level
 from interactors.scenes.start_menu import StartMenu
 from interactors.scenes.fight_scene import FightScene
 from interactors.scene import SceneChoice
@@ -16,11 +16,8 @@ def main() -> None:
         assets=load_asset_map()
     )
 
-    player = Player(position=WorldVector(0, 0, 1.0))
-    level = Level(
-        [Wall(WallType.STONE, WorldVector(5, 5, 1))],
-        [ElementOrb(Element.FIRE, WorldVector(3, 3, 1))]
-    )
+    player = Player(position=WorldVector(0, 0))
+    level = Level()
 
     state_machine = StateMachine(
         scenes={

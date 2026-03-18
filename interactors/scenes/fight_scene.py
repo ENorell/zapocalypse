@@ -17,8 +17,7 @@ def _get_move_target(player: Player, user_input: UserInput) -> Optional[WorldVec
     
     return WorldVector(
         player.position.x + x * distance / magnitude,
-        player.position.y + y * distance / magnitude,
-        player.position.z
+        player.position.y + y * distance / magnitude
     )
 
 
@@ -29,8 +28,7 @@ class FightScene(Scene):
         self._player = player
 
     def start(self) -> None:
-        for _ in range(5):
-            self._level.spawn_orb(1)
+        ...
 
     def update(self, user_input: UserInput) -> None:
         if move_target := _get_move_target(self._player, user_input):
