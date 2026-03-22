@@ -13,6 +13,8 @@ class Effect(Protocol):
     ...
 
 class Spawnable(Protocol):
+    position: WorldVector
+
     def on_spawn(self):
         ...
 
