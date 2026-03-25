@@ -3,6 +3,7 @@ from typing import Optional
 
 
 from domain.model import WorldVector, Level, Player, move
+from domain.spawning_system import *
 from interactors.presenter_model import PlayerModel, WallModel, OrbModel, OrbSlots, PresenterModel
 from interactors.scene import Scene, Presenter, UserInput
 
@@ -17,8 +18,7 @@ def _get_move_target(player: Player, user_input: UserInput) -> Optional[WorldVec
     
     return WorldVector(
         player.position.x + x * distance / magnitude,
-        player.position.y + y * distance / magnitude,
-        player.position.z
+        player.position.y + y * distance / magnitude
     )
 
 
@@ -29,8 +29,12 @@ class FightScene(Scene):
         self._player = player
 
     def start(self) -> None:
-        for _ in range(5):
-            self._level.spawn_orb(1)
+        spawner = OrbSpawner(self._level)
+        level_spawn_positions = LevelSpawnPositions(self._level )
+        spawn_positions = FreeSpawnPositions(level_spawn_positions, OccupiedSpawnPositions(LevelSpawnPositions, self._level .orbs + self._level .walls))
+        random_selector = RandomPositionSelector(spawn_positions)
+        spawner.spawn_object(random_selector, Element.FIRE)
+        spawner.spawn_object(random_selector, Element.WATER)
 
     def update(self, user_input: UserInput) -> None:
         if move_target := _get_move_target(self._player, user_input):

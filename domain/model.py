@@ -12,7 +12,9 @@ import domain.events as events
 class WorldVector(NamedTuple):
     x: float
     y: float
-    z: float = 0.0
+
+    def __add__(self, other: "WorldVector"):
+        return WorldVector((self.x + other.x), self.y + other.y )
 
 
 class Element(Enum):
@@ -78,13 +80,13 @@ class Level:
     def orbs(self) -> list[ElementOrb]:
         return list(self._orbs)
 
-    def free_spawn_positions(self, z_position: float) -> list[WorldVector]:
+    def free_spawn_positions(self) -> list[WorldVector]:
 
         physical_objects = self.orbs + self.walls
-        occupied_positions = {(obj.position.x, obj.position.y) for obj in physical_objects if obj.position.z == z_position}
+        occupied_positions = {(obj.position.x, obj.position.y) for obj in physical_objects}
 
         free_positions = [
-            WorldVector(x, y, z_position)
+            WorldVector(x, y)
             for x in range(7)
             for y in range(8)
             if (x, y) not in occupied_positions

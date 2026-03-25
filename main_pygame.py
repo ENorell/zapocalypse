@@ -16,10 +16,10 @@ def main() -> None:
         assets=load_asset_map()
     )
 
-    player = Player(position=WorldVector(0, 0, 1.0))
+    player = Player(position=WorldVector(0, 0))
     level = Level(
-        [Wall(WallType.STONE, WorldVector(5, 5, 1))],
-        [ElementOrb(Element.FIRE, WorldVector(3, 3, 1))]
+        [Wall(WallType.STONE, WorldVector(5, 5))],
+        [ElementOrb(Element.FIRE, WorldVector(3, 3))]
     )
 
     state_machine = StateMachine(
