@@ -1,6 +1,6 @@
 from typing import Optional, Sequence, Protocol
 
-from domain.model import WorldVector, Element, WallType, Player  # Red flag?
+from domain.game_objects import WorldVector, Element, WallType
 from interactors.presenter_model import PresenterModel, OrbSlots, PlayerModel, OrbModel, StartButton, QuitButton, \
     WallModel
 from interface.pixel.render_model import PixelVector, RenderModel, Asset
@@ -13,18 +13,9 @@ class MissingAssetError(PresenterError): pass
 
 class UnknownModelType(PresenterError): pass
 
-class Camera(Protocol):
-    def get_offset(self) -> WorldVector:
-        ...
-
-class PlayerFocusCamera:
-    def get_offset(self) -> WorldVector:
-        ...
-
-
-
 def transform_world_to_pixel(world_coordinate: WorldVector) -> PixelVector:
-    x, y, _ = world_coordinate
+    x = world_coordinate.x 
+    y = world_coordinate.y
     return PixelVector(round(100*x), round(100*y))
 
 class PixelPresenter:
@@ -36,25 +27,23 @@ class PixelPresenter:
         self._assets = assets
         self.render_models: list[RenderModel] = []
 
-    def get_player_model_position(player: Player) -> WorldVector:
-        return player.position
-
-    def draw(self, presenter_models: list[PresenterModel]) -> None: 
+    def draw(self, presenter_models: list[PresenterModel], camera_offset: WorldVector) -> None: 
+        
         self.render_models.clear()
         for presenter_model in presenter_models:
-            render_models = self._get_render_models(presenter_model)
+            render_models = self._get_render_models(presenter_model, camera_offset)
             self.render_models.extend(render_models)
-        
+
         self.render_models.sort(key=lambda x: x.z_position)
 
-    def _get_render_models(self, presenter_model: PresenterModel, offset: WorldVector = (0.0, 0.0)) -> list[RenderModel]:
+    def _get_render_models(self, presenter_model: PresenterModel, camera_offset: WorldVector) -> list[RenderModel]:
         match presenter_model:
             case PlayerModel(id_, position):
-                return [self._draw_world_entity(id_, position + offset, Graphic.PLAYER, 1.0)]
+                return [self._draw_world_entity(id_, position, Graphic.PLAYER, 1.0, camera_offset)]
             case OrbModel(id_, position, element):
-                return [self._draw_world_entity(id_, position + offset, _get_element_graphic(element), 1.0)]
+                return [self._draw_world_entity(id_, position, _get_element_graphic(element), 1.0, camera_offset)]
             case WallModel(id_, position, wall_type):
-                return [self._draw_world_entity(id_, position + offset, _get_wall_graphic(wall_type), 1.0)]
+                return [self._draw_world_entity(id_, position, _get_wall_graphic(wall_type), 1.0, camera_offset)]
             case OrbSlots(orbs):
                 return _draw_orb_ui(self._assets, orbs, 100.0)
             case StartButton(id_):
@@ -70,8 +59,8 @@ class PixelPresenter:
         except KeyError:
             raise MissingAssetError(f"No asset found for graphic {graphic}")
 
-    def _draw_world_entity(self, id_: int, position: WorldVector, graphic: Graphic, z_position: float) -> RenderModel:
-        pixel_position = transform_world_to_pixel(position)
+    def _draw_world_entity(self, id_: int, position: WorldVector, graphic: Graphic, z_position: float, camera_offset: WorldVector) -> RenderModel:
+        pixel_position = transform_world_to_pixel(position - camera_offset)
         asset = self._get_asset(graphic)
 
         return RenderModel(
@@ -80,7 +69,6 @@ class PixelPresenter:
             asset=asset,
             z_position=z_position
         )
-        
 
 
 def _draw_start_button(assets: dict[Graphic, Asset], id_: int, z_position: float) -> RenderModel:

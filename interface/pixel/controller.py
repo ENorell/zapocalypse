@@ -15,6 +15,8 @@ class DeviceEvent:
     up_key: bool = False
     down_key: bool = False
     space_key: bool = False
+    c_key: bool = False
+    v_key: bool = False
 
 
 
@@ -31,6 +33,8 @@ class PixelController:
             left=device_events.left_key,
             up=device_events.up_key,
             down=device_events.down_key,
+            rotate_camera_left=device_events.c_key,
+            rotate_camera_right=device_events.v_key
         )
 
         self._state_machine.update(user_input)

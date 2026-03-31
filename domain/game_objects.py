@@ -1,10 +1,25 @@
+from __future__ import annotations
 from typing import NamedTuple, Protocol
 from enum import Enum, auto
 from dataclasses import dataclass
+import math
 
-class WorldVector(NamedTuple):
+
+@dataclass(frozen=True)
+class WorldVector():
     x: float
     y: float
+
+    def __add__(self, other: WorldVector) -> WorldVector:
+        return WorldVector((self.x + other.x), (self.y + other.y))
+    
+    def __sub__(self, other: WorldVector) -> WorldVector:
+        return WorldVector((self.x - other.x), (self.y - other.y))
+
+class GameObject:
+    def __init__(self, position: WorldVector, radius: float):
+        self.position = position
+        self.radius = radius
 
 class MovableEntity(Protocol):
     ...
@@ -13,7 +28,9 @@ class Effect(Protocol):
     ...
 
 class Spawnable(Protocol):
-    position: WorldVector
+    @property
+    def position(self) -> WorldVector:
+        ...
 
     def on_spawn(self):
         ...
@@ -25,13 +42,19 @@ class Element(Enum):
     ROOT = auto()
     THUNDER = auto()
 
+    # def collides_with(self, other: Size, pos_self: WorldVector, pos_other: WorldVector) -> bool:
+    #     if isinstance(other, CircleSize):
+    #         return math.dist((pos_self.x, pos_self.y), (pos_other.x, pos_other.y)) < (self.radius + other.radius)
+    #     else:
+    #         return other.collides_with(self, pos_other, pos_self)
+
 @dataclass(frozen=True)
 class ElementOrb():
     element: Element
     position: WorldVector
 
-    def on_spawn(self):
-        ...
+    # def can_spawn(target_pos: WorldVector, target_size: Size, collidable_objects: list[Spawnable]) -> bool:
+    #     if size.
 
 class WallType(Enum):
     BUSH = auto()

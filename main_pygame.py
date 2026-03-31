@@ -1,7 +1,9 @@
-from domain.model import Player, WorldVector, Level, Wall, WallType, ElementOrb, Element
+from domain.game_objects import Wall, WallType, ElementOrb, Element, WorldVector
+from domain.model import Player, Level
 from interactors.scenes.start_menu import StartMenu
 from interactors.scenes.fight_scene import FightScene
 from interactors.scene import SceneChoice
+from interactors.camera import CenterPlayerCamera
 from interface.state_machine import StateMachine
 from interface.pixel.presenter import PixelPresenter
 from interface.pixel.render_model import PixelVector
@@ -17,15 +19,15 @@ def main() -> None:
     )
 
     player = Player(position=WorldVector(0, 0))
-    level = Level(
-        [Wall(WallType.STONE, WorldVector(5, 5))],
-        [ElementOrb(Element.FIRE, WorldVector(3, 3))]
-    )
+    level = Level()
+    # cameras = [CenterPlayerCamera(screen_size=presenter.screen_size), LockCamera(screen_size=presenter.screen_size)]
+    # camera_switcher = CameraSwitcher(cameras, CenterPlayerCamera)
+    player_camera = CenterPlayerCamera(WorldVector(8, 6))
 
     state_machine = StateMachine(
         scenes={
             SceneChoice.START_MENU: StartMenu(presenter),
-            SceneChoice.FIGHT: FightScene(presenter, player, level)
+            SceneChoice.FIGHT: FightScene(presenter, player, level, player_camera)
         },
         start_scene=SceneChoice.START_MENU
     )

@@ -1,5 +1,6 @@
 from interactors.scene import Scene, Presenter, UserInput, StopGame, SceneSwitch, SceneChoice
 from interactors.presenter_model import StartButton, QuitButton
+from domain.game_objects import WorldVector
 
 
 def _is_start_button_hovered(user_input: UserInput) -> bool:
@@ -27,5 +28,5 @@ class StartMenu(Scene):
         self._presenter.draw([
             StartButton(id(StartButton), highlight=_is_start_button_hovered(user_input)),
             QuitButton(id(QuitButton), highlight=_is_quit_button_hovered(user_input))
-        ])
+        ], WorldVector(0,0))
 

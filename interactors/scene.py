@@ -4,11 +4,11 @@ from datetime import timedelta
 from enum import Enum, auto
 from dataclasses import dataclass, field
 
-from interactors.presenter_model import PresenterModel
+from interactors.presenter_model import PresenterModel, WorldVector
 
 
 class Presenter(Protocol):
-    def draw(self, models: list[PresenterModel]) -> None: ...
+    def draw(self, presenter_models: list[PresenterModel], camera_offset: WorldVector) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -19,6 +19,8 @@ class UserInput:
     up: bool = False
     down: bool = False
     confirm: bool = False
+    rotate_camera_left: bool = False
+    rotate_camera_right: bool = False
     selected_ids: list[int] = field(default_factory=list) #Set?
 
 

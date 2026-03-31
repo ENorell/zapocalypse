@@ -2,7 +2,7 @@ from datetime import timedelta
 from unittest import TestCase, mock, main
 from pathlib import Path
 
-from domain.model import WorldVector, Element
+from domain.game_objects import WorldVector, Element
 from interactors.scene import SceneChoice, Scene, SceneSwitch, UserInput
 from interactors.presenter_model import OrbSlots, StartButton, QuitButton, PlayerModel
 from interface.state_machine import StateMachine

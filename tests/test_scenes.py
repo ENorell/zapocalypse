@@ -3,7 +3,8 @@ from unittest import TestCase, mock, main
 
 from interactors.presenter_model import QuitButton, StartButton, PlayerModel, OrbSlots
 from interactors.scene import UserInput, StopGame, Presenter, SceneSwitch
-from domain.model import Player, WorldVector, Level
+from domain.model import Player, Level
+from domain.game_objects import WorldVector
 from interactors.scenes.start_menu import StartMenu
 from interactors.scenes.fight_scene import FightScene
 

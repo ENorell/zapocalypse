@@ -1,11 +1,10 @@
-from typing import Protocol, Optional
+from typing import Protocol, Optional, Iterable
 from enum import Enum, auto
 from dataclasses import dataclass
 import random
 from domain.game_objects import WorldVector, Spawnable, ElementOrb, Element, Wall, WallType
 from domain.model import Level
 from domain.events import Event, OrbSpawned
-from domain.spell import AllOrbs, AllWalls, Context, Target
 
 class Spawner(Protocol):
     def create_object(self) -> Spawnable:
@@ -16,60 +15,45 @@ class Spawner(Protocol):
         spawnable.on_spawn() # Tvingande? Inga argument i metoden..
 
 class SpawnPositions(Protocol):
-    def resolve(self) -> list[WorldVector]: ... # Context överflödigt? Används inte alltid?
+    def resolve(self) -> Iterable[WorldVector]:
+        ...
 
-class LevelSpawnPositions():
-    def __init__(self, level: Level):
-        self.level = level
-
-    def resolve(self) -> list[WorldVector]: 
-        # return [WorldVector(x, y)
-        #             for x in range(self.level.width)
-        #             for y in range(self.level.height)] # ??
-
-        return [WorldVector(x, y)
-            for x in range(8)
-            for y in range(8)
-            ]
-
-class SpawnPositionsAroundPlayer():
-    def __init__(self, base_spawn_positions: SpawnPositions, target: Target, context: Context):
+class AnySpawnPositions():
+    def __init__(self, base_spawn_positions: Iterable[WorldVector]):
         self.base_spawn_positions = base_spawn_positions
-        self.target = target
-        self.context = context
 
-    def resolve(self) -> list[WorldVector]:
-        target_position = self.target.resolve(self.context.caster)
+    def resolve(self) -> Iterable[WorldVector]:
+        yield from self.base_spawn_positions
 
-        x = target_position.x
-        y = target_position.y
+# class NonOccupiedSpawnPositions():
+#     def __init__(self, base_spawn_positions: SpawnPositions, occupying_objects: list[Spawnable]):
+#         self.base_spawn_positions = base_spawn_positions
+#         self.occupying_objects = occupying_objects
+
+#     def resolve(self) -> Iterable[WorldVector]:
+#         base_positions = set(self.base_spawn_positions.resolve())
+#         for pos in base_positions:
+#             if pos not any (obj.size.collides.occupied_positions:
+#                 yield pos
+
+class SpawnPositionsAroundPoint():
+    def __init__(self, spawn_positions: SpawnPositions, point: WorldVector):
+        self.spawn_positions = spawn_positions
+        self.point = point
+
+    def resolve(self) -> Iterable[WorldVector]:
+        x, y = self.point.x, self.point.y
 
         offsets = [(0,1), (1,1), (1,0), (1,-1), (0,-1), (-1,-1), (-1,0), (-1,1)]
 
-        return [WorldVector(x + dx, y + dy) for dx, dy in offsets if WorldVector(x + dx, y + dy) in self.base_spawn_positions]
+        allowed_positions = {
+            WorldVector(x + dx, y + dy)
+            for dx, dy in offsets
+        }
 
-class OccupiedSpawnPositions():
-    def __init__(self, base_spawn_positions: SpawnPositions, occupying_objects: list[Spawnable]):
-        self.base_spawn_positions = base_spawn_positions
-        self.occupying_objects = occupying_objects
-
-    def resolve(self) -> list[WorldVector]: 
-        positions = self.base_spawn_positions.resolve(self)
-        objecter = [obj for obj in self.occupying_objects if obj.position in positions]
-
-        return [o.position for o in objecter]
-
-class FreeSpawnPositions():
-    def __init__(self, base_spawn_positions: SpawnPositions, occupied_positions: SpawnPositions):
-        self.base_spawn_positions = base_spawn_positions
-        self.occupied_positions = occupied_positions
-
-    def resolve(self) -> list[WorldVector]:
-        base = self.base_spawn_positions.resolve()
-
-        occupied = {(p.x, p.y) for p in self.occupied_positions.resolve()}
-
-        return [p for p in base if (p.x, p.y) not in occupied]
+        for pos in self.spawn_positions.resolve():
+            if pos in allowed_positions:
+                yield pos 
 
 class PositionSelector(Protocol):
     def __init__(self, spawn_positions: SpawnPositions):
@@ -83,53 +67,59 @@ class RandomPositionSelector():
         self.spawn_positions = spawn_positions
 
     def select(self) -> WorldVector | None:
-
-        positions = self.spawn_positions.resolve()
-        if not positions:
+        new_base_positions = list(self.spawn_positions.resolve()) # Set sen list??
+        if not new_base_positions:
             return None
-        return random.choice(positions)
+        return random.choice(new_base_positions)
+    
+class IngestedPositionSelector():
+    def __init__(self, spawn_position: WorldVector):
+        self.spawn_position = spawn_position
 
-# class OrbSpawner():
-#     def __init__(self, context: Context, spawn_position: PositionSelector, event: Optional[Event] = None):
-#         self.spawn_position = spawn_position
-#         self.event = event
-#         self.context = context
-
-#     def create_object(self, element: Element) -> Spawnable:
-#         element = element
-#         position = self.spawn_position.select(self.context, self.spawn_position)
-#         return ElementOrb(element, position)
-
-#     def _trigger_spawn_event(self) -> None:
-#         ...
-
-#     def spawn_object(self) -> None:
-#         spawnable = self.create_object()
-#         spawnable.on_spawn()
-#         self.context.level.orbs.append(spawnable)
-#         # self._trigger_spawn_event(spawnable) # Event?
-
+    def select(self) -> WorldVector | None:
+        return self.spawn_position
 
 class OrbSpawner():
     def __init__(self, level: Level, event: Optional[Event] = None):
         self.level = level
         self.event = event
 
-    def create_object(self, spawn_position: PositionSelector, element: Element) -> Spawnable:
-        position = spawn_position.select()
-        return ElementOrb(element, position)
+    def create_object(self, spawn_position: WorldVector, element: Element) -> ElementOrb:
+        return ElementOrb(element, spawn_position)
 
     def _trigger_spawn_event(self) -> None:
         ...
 
-    def spawn_object(self, spawn_position: PositionSelector, element: Element) -> None:
-        spawnable = self.create_object(spawn_position, element)
-        spawnable.on_spawn()
-        self.level.orbs.append(spawnable)
+    def spawn_object(self, position_selector: PositionSelector, element: Element) -> None:
+        position = position_selector.select()
+        if position is None:
+            return
+        orb = self.create_object(position, element)
+        self.level.orbs.append(orb)
 
-level = Level()
-spawner = OrbSpawner(level)
-level_spawn_positions = LevelSpawnPositions(level)
-spawn_positions = FreeSpawnPositions(level_spawn_positions, OccupiedSpawnPositions(LevelSpawnPositions, level.orbs + level.walls))
-random_selector = RandomPositionSelector(spawn_positions)
-spawner.spawn_object(random_selector, Element.FIRE)
+    def spawn_object_at(self, position: WorldVector, element: Element) -> None:
+        orb = self.create_object(position, element)
+        self.level.orbs.append(orb)
+
+class WallSpawner():
+    def __init__(self, level: Level, event: Optional[Event] = None):
+        self.level = level
+        self.event = event
+
+    def create_object(self, spawn_position: WorldVector, wall_type: WallType) -> Wall:
+        return Wall(wall_type, spawn_position)
+
+    def _trigger_spawn_event(self) -> None:
+        ...
+
+    def spawn_object(self, position_selector: PositionSelector, wall_type: WallType) -> None:
+        position = position_selector.select()
+        if position is None:
+            return
+        wall = self.create_object(position, wall_type)  # orb is ElementOrb
+        wall.on_spawn()
+        self.level.walls.append(wall)
+
+    def spawn_object_at(self, position: WorldVector, wall_type: WallType) -> None:
+        wall = self.create_object(position, wall_type)
+        self.level.walls.append(wall)
