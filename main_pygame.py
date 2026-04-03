@@ -1,5 +1,4 @@
-from domain.game_objects import Wall, WallType, ElementOrb, Element, WorldVector
-from domain.model import Player, Level
+from domain.model import Player, Level, Wall, WallType, ElementOrb, Element, WorldVector
 from interactors.scenes.start_menu import StartMenu
 from interactors.scenes.fight_scene import FightScene
 from interactors.scene import SceneChoice
@@ -18,7 +17,7 @@ def main() -> None:
         assets=load_asset_map()
     )
 
-    player = Player(position=WorldVector(0, 0))
+    player = Player(position=WorldVector(0, 0), elements=[])
     level = Level()
     # cameras = [CenterPlayerCamera(screen_size=presenter.screen_size), LockCamera(screen_size=presenter.screen_size)]
     # camera_switcher = CameraSwitcher(cameras, CenterPlayerCamera)

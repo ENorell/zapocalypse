@@ -1,11 +1,12 @@
 import math
+import random
 from typing import Optional
 
 from dataclasses import replace
 from domain.spell import create_run_command, Context
-from domain.model import Level, Player
-from domain.spawning_system import *
-from interactors.presenter_model import PlayerModel, WallModel, OrbModel, OrbSlots, PresenterModel, WorldPresenterModel
+from domain.model import WorldVector, Level, Player, WallType, Element, TileType
+import domain.spawning_system as sp
+from interactors.presenter_model import PlayerModel, WallModel, OrbModel, TileModel, OrbSlots, PresenterModel, WorldPresenterModel
 from interactors.scene import Scene, Presenter, UserInput
 from interactors.camera import CenterPlayerCamera, CameraRotation
 
@@ -24,11 +25,10 @@ class FightScene(Scene):
         self._level = level
         self._player = player
         self._camera = player_camera
-        # self._camera_switcher = camera_switcher
         self._context = Context(self._player, self._level, [self._player])
 
     def start(self) -> None:
-        orb_spawner = OrbSpawner(self._level)
+        orb_spawner = sp.OrbSpawner(self._level)
 
         temp_spawn_positions = [
             WorldVector(self._player.position.x + x, self._player.position.y + y)
@@ -36,21 +36,20 @@ class FightScene(Scene):
             for y in range(-1, 3)
         ]
 
-        level_spawn_positions = AnySpawnPositions(temp_spawn_positions)
-        random_selector = RandomPositionSelector(level_spawn_positions)
-        for i in range(8):
-            orb_spawner.spawn_object(random_selector, random.choice(list(Element)))
+        level_spawn_positions = sp.AnySpawnPositions(temp_spawn_positions)
+        random_selector = sp.RandomPositionSelector(level_spawn_positions)
+        orb_spawner.spawn_object_at(WorldVector(2, 2), Element.FIRE)
 
-        wall_spawner = WallSpawner(self._level)
+        wall_spawner = sp.WallSpawner(self._level)
 
-        center_x = self._player.position.x
-        center_y = self._player.position.y
-        size = 4
+        # center_x = self._player.position.x
+        # center_y = self._player.position.y
+        # size = 4
 
-        for x in range(center_x - size, center_x + size + 1):
-            for y in range(center_y - size, center_y + size + 1):
-                if x == center_x - size or x == center_x + size or y == center_y - size or y == center_y + size:
-                    wall_spawner.spawn_object_at(WorldVector(x, y), WallType.STONE)
+        wall_spawner.spawn_object_at(WorldVector(1, 1), WallType.STONE)
+
+        tile_spawner = sp.TileSpawner(self._level)
+        tile_spawner.spawn_object_at(WorldVector(3, 3), TileType.MUD)
 
     def update(self, user_input: UserInput) -> None:
         
@@ -62,10 +61,6 @@ class FightScene(Scene):
             run_effect.apply(self._context)
 
         camera_offset = self._camera.get_camera_offset(self._player.position)
-        if user_input.rotate_camera_left:
-            self._camera.rotate_camera(CameraRotation.left)
-        elif user_input.rotate_camera_right:
-            self._camera.rotate_camera(CameraRotation.right)
 
         self._presenter.draw([
             PlayerModel(id(self._player), position=self._player.position),
@@ -83,4 +78,8 @@ class FightScene(Scene):
             OrbModel(id(orb), element=orb.element, position=orb.position)
             for orb in self._level.orbs
         ]
-        return wall_models + orb_models
+        tile_models: list[PresenterModel] = [
+            TileModel(id(tile), tile_type=tile.tile_type, position=tile.position)
+            for tile in self._level.tiles
+        ]
+        return wall_models + orb_models + tile_models

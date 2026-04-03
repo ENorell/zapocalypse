@@ -2,8 +2,7 @@ from typing import Protocol, Optional, Iterable
 from enum import Enum, auto
 from dataclasses import dataclass
 import random
-from domain.game_objects import WorldVector, Spawnable, ElementOrb, Element, Wall, WallType
-from domain.model import Level
+from domain.model import WorldVector, Level, Spawnable, ElementOrb, Element, Wall, WallType, Tile, TileType
 from domain.events import Event, OrbSpawned
 
 class Spawner(Protocol):
@@ -123,3 +122,27 @@ class WallSpawner():
     def spawn_object_at(self, position: WorldVector, wall_type: WallType) -> None:
         wall = self.create_object(position, wall_type)
         self.level.walls.append(wall)
+
+
+class TileSpawner():
+    def __init__(self, level: Level, event: Optional[Event] = None):
+        self.level = level
+        self.event = event
+
+    def create_object(self, spawn_position: WorldVector, tile_type: TileType) -> Tile:
+        return Tile(tile_type, spawn_position)
+
+    def _trigger_spawn_event(self) -> None:
+        ...
+
+    def spawn_object(self, position_selector: PositionSelector, tile_type: TileType) -> None:
+        position = position_selector.select()
+        if position is None:
+            return
+        tile = self.create_object(position, tile_type)
+        tile.on_spawn()
+        self.level.tiles.append(tile)
+
+    def spawn_object_at(self, position: WorldVector, tile_type: TileType) -> None:
+        tile = self.create_object(position, tile_type)
+        self.level.tiles.append(tile)

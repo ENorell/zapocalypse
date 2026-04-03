@@ -1,8 +1,8 @@
 from typing import Optional, Sequence, Protocol
 
-from domain.game_objects import WorldVector, Element, WallType
+from domain.model import WorldVector, Element, WallType, TileType
 from interactors.presenter_model import PresenterModel, OrbSlots, PlayerModel, OrbModel, StartButton, QuitButton, \
-    WallModel
+    WallModel, TileModel
 from interface.pixel.render_model import PixelVector, RenderModel, Asset
 from interface.pixel.asset_config import Graphic
 
@@ -39,11 +39,13 @@ class PixelPresenter:
     def _get_render_models(self, presenter_model: PresenterModel, camera_offset: WorldVector) -> list[RenderModel]:
         match presenter_model:
             case PlayerModel(id_, position):
-                return [self._draw_world_entity(id_, position, Graphic.PLAYER, 1.0, camera_offset)]
+                return [self._draw_world_entity(id_, position, Graphic.PLAYER, 2.0, camera_offset)]
             case OrbModel(id_, position, element):
-                return [self._draw_world_entity(id_, position, _get_element_graphic(element), 1.0, camera_offset)]
+                return [self._draw_world_entity(id_, position, _get_element_graphic(element), 2.0, camera_offset)]
             case WallModel(id_, position, wall_type):
-                return [self._draw_world_entity(id_, position, _get_wall_graphic(wall_type), 1.0, camera_offset)]
+                return [self._draw_world_entity(id_, position, _get_wall_graphic(wall_type), 2.0, camera_offset)]
+            case TileModel(id_, position, tile_type):
+                return [self._draw_world_entity(id_, position, _get_tile_graphic(tile_type), 1.0, camera_offset)]
             case OrbSlots(orbs):
                 return _draw_orb_ui(self._assets, orbs, 100.0)
             case StartButton(id_):
@@ -108,6 +110,14 @@ def _get_wall_graphic(wall_type: Optional[WallType]) -> Graphic:
         # Etc.
         case None:          return Graphic.EMPTY_ORB_SLOT
         case _: raise ValueError(f"Unknown Wall {wall_type}")
+
+def _get_tile_graphic(tile_type: Optional[TileType]) -> Graphic:
+    match tile_type:
+        case TileType.MUD:   return Graphic.MUD_TILE
+        case TileType.WATER:    return Graphic.WATER_TILE
+        # Etc.
+        case None:          return Graphic.EMPTY_ORB_SLOT
+        case _: raise ValueError(f"Unknown Tile {tile_type}")
 
 def _draw_orb_ui(assets: dict[Graphic, Asset], elements: Sequence[Optional[Element]], z_position: float) -> list[RenderModel]:
     result = []

@@ -1,6 +1,6 @@
 from enum import Enum, auto
 from typing import Protocol
-from interactors.presenter_model import WorldVector
+from domain.model import WorldVector
 import math
 
 # class Camera(Protocol):
@@ -19,11 +19,11 @@ class CenterPlayerCamera():
     # def set_player_position(self, player_position: WorldVector) -> WorldVector:
     #     self.player_position = player_position
 
-    def rotate_camera(self, rotation: CameraRotation):
-        if rotation == CameraRotation.left:
-            self.rotation_angle = (self.rotation_angle + 1) % 360
-        if rotation == CameraRotation.right:
-            self.rotation_angle = (self.rotation_angle - 1) % 360
+    # def rotate_camera(self, rotation: CameraRotation):
+    #     if rotation == CameraRotation.left:
+    #         self.rotation_angle = (self.rotation_angle + 1) % 360
+    #     if rotation == CameraRotation.right:
+    #         self.rotation_angle = (self.rotation_angle - 1) % 360
 
     def get_camera_offset(self, player_position: WorldVector) -> WorldVector:
         world_center_x = self.screen_size.x / 2
@@ -41,21 +41,21 @@ class CenterPlayerCamera():
             rotated_y
         )
     
-    def apply_rotation(self, world_position: WorldVector, camera_offset: WorldVector) -> WorldVector:
-        """Rotate a world position around the player"""
-        # position relative to player
-        rel_x = world_position.x - (camera_offset.x + self.screen_size.x / 2)
-        rel_y = world_position.y - (camera_offset.y + self.screen_size.y / 2)
+    # def apply_rotation(self, world_position: WorldVector, camera_offset: WorldVector) -> WorldVector:
+    #     """Rotate a world position around the player"""
+    #     # position relative to player
+    #     rel_x = world_position.x - (camera_offset.x + self.screen_size.x / 2)
+    #     rel_y = world_position.y - (camera_offset.y + self.screen_size.y / 2)
 
-        rad = math.radians(self.rotation_angle)
-        rotated_x = rel_x * math.cos(rad) - rel_y * math.sin(rad)
-        rotated_y = rel_x * math.sin(rad) + rel_y * math.cos(rad)
+    #     rad = math.radians(self.rotation_angle)
+    #     rotated_x = rel_x * math.cos(rad) - rel_y * math.sin(rad)
+    #     rotated_y = rel_x * math.sin(rad) + rel_y * math.cos(rad)
 
-        # back to world coordinates
-        rotated_world_x = rotated_x + (camera_offset.x + self.screen_size.x / 2)
-        rotated_world_y = rotated_y + (camera_offset.y + self.screen_size.y / 2)
+    #     # back to world coordinates
+    #     rotated_world_x = rotated_x + (camera_offset.x + self.screen_size.x / 2)
+    #     rotated_world_y = rotated_y + (camera_offset.y + self.screen_size.y / 2)
 
-        return WorldVector(rotated_world_x, rotated_world_y)
+    #     return WorldVector(rotated_world_x, rotated_world_y)
     
 # class LockCamera():
 #     def __init__(self, screen_size: WorldVector):

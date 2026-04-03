@@ -11,6 +11,9 @@ class Graphic(StrEnum):
     ORB = auto()
     STONE_WALL = auto()
     BUSH_WALL = auto()
+    MUD_TILE = auto()
+    WATER_TILE = auto()
+    FIRE_TILE = auto()
     START_GAME_BUTTON = auto()
     QUIT_GAME_BUTTON = auto()
     FIRE_ORB_SLOT = auto()
@@ -30,6 +33,9 @@ def load_asset_map() -> dict[Graphic, Asset]:
         Graphic.WALL: BoxAsset(size=PixelVector(100, 100), color=RGB(255, 222, 0)),
         Graphic.STONE_WALL: BoxAsset(size=PixelVector(100, 100), color=RGB(128, 128, 128)),
         Graphic.BUSH_WALL: BoxAsset(size=PixelVector(100, 100), color=RGB(50, 205, 50)),
+        Graphic.MUD_TILE: BoxAsset(size=PixelVector(100, 100), color=RGB(139, 69, 19)),
+        Graphic.WATER_TILE: BoxAsset(size=PixelVector(100, 100), color=RGB(30, 144, 255)),
+        Graphic.FIRE_TILE: BoxAsset(size=PixelVector(100, 100), color=RGB(255, 69, 0)),
         Graphic.ORB: BoxAsset(size=PixelVector(75, 75), color=RGB(0, 0, 255)),
         Graphic.FIRE_ORB_SLOT: CircleAsset(radius=25, color=RGB(255, 0, 0)),
         Graphic.WATER_ORB_SLOT: CircleAsset(radius=25, color=RGB(0, 0, 255)),

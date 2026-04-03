@@ -2,10 +2,9 @@ from unittest import TestCase
 from datetime import timedelta
 import random
 
-from domain.game_objects import WorldVector, Wall, WallType, ElementOrb, Element
-from domain.spawning_system import OrbSpawner, AnySpawnPositions, RandomPositionSelector
-from domain.model import Player, Level, FireStorm, move, conjure_spell
-from domain.spell import Context, AllOrbs, AllWalls, create_run_command
+from domain.spawning_system import OrbSpawner, AnySpawnPositions, RandomPositionSelector, TileSpawner
+from domain.model import WorldVector, Player, Level, Wall, WallType, ElementOrb, Element, MoveType, Tile, TileType
+from domain.spell import Spell, Context, AnyResult, CasterPlayerTarget, AllOrbs, AllWalls, ExactNumber, Conditional, ElementOrbTarget, ElementOrbPositionTarget, IsMovableCondition, DisplaceEffect, NoEffect, MoveDestinationTarget, create_run_command, conjure_spell
 import domain.events as events
 
 
@@ -29,24 +28,28 @@ import domain.events as events
 #         self.assertEqual(player.position, WorldVector(0, 0))
 
 
-# class TestPickupOrb(TestCase):
-#     def test_orb_pickup(self) -> None:
-#         player = Player(WorldVector(0, 0))
-#         level = Level(walls=[], orbs=[ElementOrb(Element.WIND, target:=WorldVector(1, 0))])
+class TestPickupOrb(TestCase):
+    def test_orb_pickup(self) -> None:
+        player = Player(WorldVector(2, 3))
+        level = Level()
+        orb_spawner = OrbSpawner(level)
+        orb_spawner.spawn_object_at(WorldVector(3,3), Element.WIND)
+        context = Context(player, level, [])
         
-#         move(player, target, level)
+        run_effect = create_run_command(WorldVector(4, 0), timedelta(seconds=1))
+        run_effect.apply(context)
 
-#         self.assertIn(events.OrbPickup(), player.events)
-#         self.assertIn(Element.WIND, player._elements)
+        # self.assertIn(events.OrbPickup(), player.events)
+        self.assertIn(Element.WIND, player._elements)
         
 
 class TestSpells(TestCase):
     def test_create_spell(self):
-        elements = [Element.WIND, Element.WIND, Element.FIRE]
+        elements = [Element.FIRE, Element.FIRE, Element.WIND]
+        player = Player(WorldVector(0,0), elements)
         
         self.assertIsInstance(
-            conjure_spell(elements),
-            FireStorm
+            conjure_spell(player), Spell
         )
 
 
@@ -100,27 +103,62 @@ class TestPlayerMove(TestCase):
         self.context  = Context(caster = self.player, level = self.level, players = self.players)
 
         direction = WorldVector(1, 1)
-        duration = timedelta(1)
+        duration = timedelta(seconds=1)
 
         run_effect = create_run_command(direction, duration)
         run_effect.apply(self.context)
 
-        expected_position = WorldVector(3, 4)
-        self.assertEqual = self.player.position = expected_position
+        expected_position = CasterPlayerTarget().resolve(self.context).position
+        self.assertEqual(self.player.position, expected_position)
 
+class TestOrbMove(TestCase):
 
-# class TestNewPickupOrb(TestCase):
-#     def test_orb_pickup(self) -> None:
-#         player = Player(WorldVector(2, 3))
-#         level = Level()
-#         orb_spawner = OrbSpawner(level)
+    def test_move_orb(self) -> None:
+        self.level = Level()
+        self.player = Player(WorldVector(0, 0))
+        self.orb_spawner = OrbSpawner(self.level)
+
+        position = WorldVector(3.0, 3.0)
+        element = Element.FIRE
+        self.orb_spawner.spawn_object_at(position, element)
+        self.context = Context(caster = self.player, level=self.level, players=[])
+
+        print(self.level.orbs)
+                
+        direction = WorldVector(1, 1)
+        orb_target = ElementOrbTarget(WorldVector(3.0, 3.0))
+        destination_target = MoveDestinationTarget(
+                    origin=ElementOrbPositionTarget(orb_target),
+                    direction=direction,
+                    duration=timedelta(seconds=1),
+                    speed=ExactNumber(5.0)
+                )
         
-#         orb_spawner.spawn_object_at(WorldVector(3, 3), Element.FIRE)
+        destination = destination_target.resolve(self.context)
 
-#         direction = WorldVector(3, 3)
-#         duration = timedelta(1)
+        Conditional(
+            AnyResult(orb_target),
+            on_pass=
+                Conditional(
+                    IsMovableCondition(orb_target), 
+                    on_pass=
+                        DisplaceEffect(orb_target, destination_target),
+                    on_fail=
+                        NoEffect()
+                ),
+            on_fail=NoEffect()  
+        ).apply(self.context)
 
-#         run_effect = create_run_command(direction, duration)
-#         run_effect.apply(co)
+        orb = self.level.orbs[0]
+        self.assertEqual(orb.position, destination)
 
+class TestTraverseTile(TestCase):
+    def traverse_tile(self) -> None:
+        self.level = Level()
+        self.player = Player(WorldVector(3,3))
+
+        tile_spawner = TileSpawner(self.level)
+        tile_spawner.spawn_object_at(WorldVector(3,4))
+
+        
         

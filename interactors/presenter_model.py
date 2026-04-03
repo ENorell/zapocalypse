@@ -2,7 +2,7 @@ from typing import Optional, Sequence
 from dataclasses import dataclass
 from abc import ABC
 
-from domain.game_objects import Element, WallType, WorldVector
+from domain.model import Element, WallType, TileType, WorldVector
 
 
 class PresenterModel(ABC): ...
@@ -19,7 +19,6 @@ class WorldPresenterModel(PresenterModel, ABC):
     id: int
     position: WorldVector
 
-
 ## New models are added below ##
 
 @dataclass(frozen=True)
@@ -32,6 +31,10 @@ class WallModel(WorldPresenterModel):
 @dataclass(frozen=True)
 class OrbModel(WorldPresenterModel):
     element: Element
+
+@dataclass(frozen=True)
+class TileModel(WorldPresenterModel):
+    tile_type: TileType
 
 @dataclass(frozen=True)
 class OrbSlots(PresenterModel):

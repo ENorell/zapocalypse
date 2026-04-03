@@ -1,6 +1,6 @@
 from interactors.scene import Scene, Presenter, UserInput, StopGame, SceneSwitch, SceneChoice
 from interactors.presenter_model import StartButton, QuitButton
-from domain.game_objects import WorldVector
+from domain.model import WorldVector
 
 
 def _is_start_button_hovered(user_input: UserInput) -> bool:
