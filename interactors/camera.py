@@ -14,16 +14,6 @@ class CameraRotation(Enum):
 class CenterPlayerCamera():
     def __init__(self, screen_size: WorldVector):
         self.screen_size = screen_size
-        self.rotation_angle = 0.0
-
-    # def set_player_position(self, player_position: WorldVector) -> WorldVector:
-    #     self.player_position = player_position
-
-    # def rotate_camera(self, rotation: CameraRotation):
-    #     if rotation == CameraRotation.left:
-    #         self.rotation_angle = (self.rotation_angle + 1) % 360
-    #     if rotation == CameraRotation.right:
-    #         self.rotation_angle = (self.rotation_angle - 1) % 360
 
     def get_camera_offset(self, player_position: WorldVector) -> WorldVector:
         world_center_x = self.screen_size.x / 2
@@ -32,13 +22,9 @@ class CenterPlayerCamera():
         offset_x = player_position.x - world_center_x
         offset_y = player_position.y - world_center_y
 
-        rad = math.radians(self.rotation_angle)
-        rotated_x = offset_x * math.cos(rad) - offset_y * math.sin(rad)
-        rotated_y = offset_x * math.sin(rad) + offset_y * math.cos(rad)
-
         return WorldVector(
-            rotated_x,
-            rotated_y
+            offset_x,
+            offset_y
         )
     
     # def apply_rotation(self, world_position: WorldVector, camera_offset: WorldVector) -> WorldVector:

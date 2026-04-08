@@ -1,4 +1,5 @@
-from domain.model import Player, Level, Wall, WallType, ElementOrb, Element, WorldVector
+from domain.spell import Player
+from domain.model import Level, WorldVector
 from interactors.scenes.start_menu import StartMenu
 from interactors.scenes.fight_scene import FightScene
 from interactors.scene import SceneChoice

@@ -18,6 +18,12 @@ def transform_world_to_pixel(world_coordinate: WorldVector) -> PixelVector:
     y = world_coordinate.y
     return PixelVector(round(100*x), round(100*y))
 
+def vector_sub(a: WorldVector, b: WorldVector) -> WorldVector:
+    return WorldVector(a.x - b.x, a.y - b.y)
+
+def vector_add(a: WorldVector, b: WorldVector) -> WorldVector:
+    return WorldVector(a.x + b.x, a.y + b.y)
+
 class PixelPresenter:
     def __init__(self,
                  screen_size: PixelVector,
@@ -62,7 +68,7 @@ class PixelPresenter:
             raise MissingAssetError(f"No asset found for graphic {graphic}")
 
     def _draw_world_entity(self, id_: int, position: WorldVector, graphic: Graphic, z_position: float, camera_offset: WorldVector) -> RenderModel:
-        pixel_position = transform_world_to_pixel(position - camera_offset)
+        pixel_position = transform_world_to_pixel(vector_sub(position, camera_offset))
         asset = self._get_asset(graphic)
 
         return RenderModel(

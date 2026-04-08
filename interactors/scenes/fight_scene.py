@@ -3,8 +3,8 @@ import random
 from typing import Optional
 
 from dataclasses import replace
-from domain.spell import create_run_command, Context
-from domain.model import WorldVector, Level, Player, WallType, Element, TileType
+from domain.spell import Player, Context, create_run_command
+from domain.model import WorldVector, Level, WallType, Element, TileType
 import domain.spawning_system as sp
 from interactors.presenter_model import PlayerModel, WallModel, OrbModel, TileModel, OrbSlots, PresenterModel, WorldPresenterModel
 from interactors.scene import Scene, Presenter, UserInput
@@ -41,11 +41,6 @@ class FightScene(Scene):
         orb_spawner.spawn_object_at(WorldVector(2, 2), Element.FIRE)
 
         wall_spawner = sp.WallSpawner(self._level)
-
-        # center_x = self._player.position.x
-        # center_y = self._player.position.y
-        # size = 4
-
         wall_spawner.spawn_object_at(WorldVector(1, 1), WallType.STONE)
 
         tile_spawner = sp.TileSpawner(self._level)
@@ -61,7 +56,7 @@ class FightScene(Scene):
             run_effect.apply(self._context)
 
         camera_offset = self._camera.get_camera_offset(self._player.position)
-
+        
         self._presenter.draw([
             PlayerModel(id(self._player), position=self._player.position),
             *self._get_level_presenter_models(),

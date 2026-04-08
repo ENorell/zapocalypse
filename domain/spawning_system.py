@@ -3,6 +3,7 @@ from enum import Enum, auto
 from dataclasses import dataclass
 import random
 from domain.model import WorldVector, Level, Spawnable, ElementOrb, Element, Wall, WallType, Tile, TileType
+from domain.spell import Effect
 from domain.events import Event, OrbSpawned
 
 class Spawner(Protocol):
@@ -129,13 +130,13 @@ class TileSpawner():
         self.level = level
         self.event = event
 
-    def create_object(self, spawn_position: WorldVector, tile_type: TileType) -> Tile:
-        return Tile(tile_type, spawn_position)
+    def create_object(self, spawn_position: WorldVector, tile_type: TileType) -> Tile:#, on_traverse_effects: list[Effect]) -> Tile:
+        return Tile(tile_type, spawn_position) #, on_traverse_effects)
 
     def _trigger_spawn_event(self) -> None:
         ...
 
-    def spawn_object(self, position_selector: PositionSelector, tile_type: TileType) -> None:
+    def spawn_object(self, position_selector: PositionSelector, tile_type: TileType) -> None: #, on_traverse_effects: list[Effect]) -> None:
         position = position_selector.select()
         if position is None:
             return
@@ -143,6 +144,6 @@ class TileSpawner():
         tile.on_spawn()
         self.level.tiles.append(tile)
 
-    def spawn_object_at(self, position: WorldVector, tile_type: TileType) -> None:
+    def spawn_object_at(self, position: WorldVector, tile_type: TileType) -> None: #, on_traverse_effects: list[Effect]) -> None:
         tile = self.create_object(position, tile_type)
         self.level.tiles.append(tile)
