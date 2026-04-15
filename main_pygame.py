@@ -1,6 +1,6 @@
 from domain.model import Player, WorldVector, Level, Wall, WallType, ElementOrb, Element
-from interactors.scenes.start_menu import StartMenu
-from interactors.scenes.fight_scene import FightScene
+from interactors.scenes.start_menu import *#StartMenu
+from interactors.scenes.fight_scene import *#FightScene
 from interactors.scene import SceneChoice
 from interface.state_machine import StateMachine
 from interface.pixel.presenter import PixelPresenter
@@ -8,6 +8,7 @@ from interface.pixel.render_model import PixelVector
 from interface.pixel.asset_config import load_asset_map
 from interface.pixel.controller import PixelController
 from view.pygame_view import PygameView
+
 
 
 def main() -> None:
@@ -21,11 +22,12 @@ def main() -> None:
         [Wall(WallType.STONE, WorldVector(5, 5, 1))],
         [ElementOrb(Element.FIRE, WorldVector(3, 3, 1))]
     )
+    context=World(caster=player, level=level, players=[player])
 
     state_machine = StateMachine(
         scenes={
-            SceneChoice.START_MENU: StartMenu(presenter),
-            SceneChoice.FIGHT: FightScene(presenter, player, level)
+            SceneChoice.START_MENU: create_start_menu_scene(context, presenter), #StartMenu(presenter),#
+            SceneChoice.FIGHT: create_fight_scene(context, presenter),#FightScene(presenter, player, level)
         },
         start_scene=SceneChoice.START_MENU
     )

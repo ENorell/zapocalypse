@@ -6,6 +6,7 @@ class StateMachine:
     def __init__(self, scenes: dict[SceneChoice, Scene], start_scene: SceneChoice) -> None:
         self.scenes: dict[SceneChoice, Scene] = scenes
         self.scene: Scene = self.scenes[start_scene]
+        self.scene.start()
 
     def switch_scene(self, next_state: SceneChoice) -> None:
         self.scene.cleanup()
