@@ -53,7 +53,7 @@ class TestSpells(TestCase):
         level = Level(walls=[], orbs=[])
         spell = FireBall(player)
 
-        spell.cast(level)
+        spell.apply(level)
 
         self.assertIn(events.CastedSpell(), player.events)
         self.assertIn(Projectile(WorldVector(0, 0)), level.projectiles)
