@@ -1,108 +1,11 @@
-import math
-from typing import Optional
+from typing import Callable
+from datetime import timedelta
+import random
 
-
-from domain.model import WorldVector, Level, Player, move
-from interactors.presenter_model import PlayerModel, WallModel, OrbModel, OrbSlots, PresenterModel
+from domain.model import WorldVector, Level, Player, move, Element
+from domain.spell import spell_list, World, create_run_command, Effect, create_fireball_spell
+from interactors.presenter_model import PlayerModel, WallModel, OrbModel, OrbSlots, PresenterModel, ProjectileModel
 from interactors.scene import Scene, Presenter, UserInput
-
-# 
-# def _get_move_target(player: Player, user_input: UserInput) -> Optional[WorldVector]:
-#     x = user_input.right - user_input.left
-#     y = user_input.down - user_input.up
-#     magnitude = math.hypot(x, y)
-#     distance = player.get_speed() * user_input.delta_time.total_seconds()
-#     if not distance or not magnitude:
-#         return None
-#     
-#     return WorldVector(
-#         player.position.x + x * distance / magnitude,
-#         player.position.y + y * distance / magnitude,
-#         player.position.z
-#     )
-# 
-# 
-# class FightScene(Scene):
-#     def __init__(self, presenter: Presenter, player: Player, level: Level):
-#         self._presenter = presenter
-#         self._level = level
-#         self._player = player
-# 
-#     def start(self) -> None:
-#         for _ in range(5):
-#             self._level.spawn_orb(1)
-# 
-#     def update(self, user_input: UserInput) -> None:
-#         if move_target := _get_move_target(self._player, user_input):
-#             move(self._player, move_target, self._level)
-# 
-#         self._presenter.draw([
-#             PlayerModel(id(self._player), position=self._player.position),
-#             *self._get_level_presenter_models(),
-#             OrbSlots(self._player.elements)
-#         ])
-#         
-#     def _get_level_presenter_models(self) -> list[PresenterModel]:
-#         wall_models: list[PresenterModel] = [
-#             WallModel(id(wall), wall_type=wall.wall_type, position=wall.position)
-#             for wall in self._level.walls
-#         ]
-#         orb_models: list[PresenterModel] = [
-#             OrbModel(id(orb), element=orb.element, position=orb.position)
-#             for orb in self._level.orbs
-#         ]
-#         return wall_models + orb_models
-
-
-
-from domain.spell import *
-
-
-# class PresentFight:
-#     def __init__(self, presenter) -> None:
-#         self._presenter = presenter
-# 
-#     def apply(self, context: Context) -> None:
-#         self._presenter.draw([
-#             PlayerModel(id(context._player), position=context._player.position),
-#             *self._get_level_presenter_models(),
-#             OrbSlots(context._player.elements)
-#         ])
-# 
-#     def _get_level_presenter_models(self) -> list[PresenterModel]:
-#         wall_models: list[PresenterModel] = [
-#             WallModel(id(wall), wall_type=wall.wall_type, position=wall.position)
-#             for wall in self._level.walls
-#         ]
-#         orb_models: list[PresenterModel] = [
-#             OrbModel(id(orb), element=orb.element, position=orb.position)
-#             for orb in self._level.orbs
-#         ]
-#         return wall_models + orb_models
-
-
-# def make_fight_presenter(presenter: Presenter) -> Callable[[UserInput, Context], None]:
-#     #present_fight = PresentFight(presenter)
-#     def fight_presenter_system(_: UserInput, context: Context) -> None:
-#         # Probably input will be needed for presenting eventually
-#         # effect = lambda context: draw_walls(context)
-#         # presenter.draw(models)
-#         wall_models: list[PresenterModel] = [
-#             WallModel(id(wall), wall_type=wall.wall_type, position=wall.position)
-#             for wall in context.walls
-#         ]
-#         orb_models: list[PresenterModel] = [
-#             OrbModel(id(orb), element=orb.element, position=orb.position)
-#             for orb in context.orbs
-#         ]
-#         presenter.draw([
-#             PlayerModel(id(context._player), position=context._player.position),
-#             *wall_models,
-#             *orb_models,
-#             OrbSlots(context._player.elements)
-#         ])
-# 
-#     return fight_presenter_system
 
 
 class DrawFightSystem:
@@ -111,7 +14,10 @@ class DrawFightSystem:
         
     def update(self, _: UserInput, context: World) -> None:
         # Probably user input will be needed for presenting eventually
-
+        projectile_models: list[PresenterModel] = [
+            ProjectileModel(id(projectile), position=projectile.position)
+            for projectile in context.projectiles
+        ]
         wall_models: list[PresenterModel] = [
             WallModel(id(wall), wall_type=wall.wall_type, position=wall.position)
             for wall in context.level.walls
@@ -121,14 +27,15 @@ class DrawFightSystem:
             for orb in context.level.orbs
         ]
         self._presenter.draw([
-            PlayerModel(id(context.caster), position=context.caster.position),
+            PlayerModel(id(context.player), position=context.player.position),
             *wall_models,
             *orb_models,
-            OrbSlots(context.caster.elements)
+            *projectile_models,
+            OrbSlots(context.player.elements)
         ])
 
 
-class MoveSystem:
+class MoveSystem: # PlayerControlSystem? One per player?
     @staticmethod
     def update(user_input: UserInput, context: World) -> None:
         move_direction: Callable[[UserInput], WorldVector] = lambda i: WorldVector(i.right - i.left, i.down - i.up)
@@ -136,18 +43,84 @@ class MoveSystem:
         command = create_run_command(move_direction(user_input), frame_duration(user_input))
         command.apply(context)
 
+
+class ProjectileSystem:
+    @staticmethod
+    def _is_outside_world(position: WorldVector) -> bool: # Rudimentary logic to clean up projectiles
+        x, y, _ = position
+        return abs(x) > 100 or abs(y) > 100
+
+    @staticmethod
+    def update(user_input: UserInput, world: World) -> None:
+        for projectile in world.projectiles:
+            projectile.fly(user_input.delta_time)
+
+            if ProjectileSystem._is_outside_world(projectile.position):
+                world.projectiles.remove(projectile)
+                del projectile
+
+
+class SpawnOrbSystem:  # Generalize?
+    def __init__(self):
+        self._spawn_timer: Callable[[timedelta], bool] = self._repeatable_timer(3.0)  # Inject or instantiate?
+        self._position_selector = lambda _: WorldVector(random.randint(1, 10), random.randint(1, 10))
+        self._element_selector = lambda _: random.choice(list(Element))
+
+    def update(self, user_input: UserInput, context: World) -> None:
+        if not self._spawn_timer(user_input.delta_time):
+            return
+        position = self._position_selector(context)
+        element = self._element_selector(context)
+        context.level.spawn_orb(1.0)
+
+    @staticmethod
+    def _repeatable_timer(frequency: float) -> Callable[[timedelta], bool]:
+        time_counted = 0.0  # make timedelta everywhere?
+        def is_triggered(tick_time: timedelta) -> bool:
+            nonlocal time_counted
+            time_counted += tick_time.total_seconds()
+            if time_counted > frequency:
+                time_counted -= frequency
+                return True
+            return False
+        return is_triggered
+
+
+class SpellSystem:
+    def __init__(self):
+        self._cast_spell_input: Callable[[UserInput], bool] = lambda i: i.confirm
+
+    def update(self, user_input: UserInput, context: World) -> None:
+        if not self._cast_spell_input(user_input):
+            return
+        spell = self._conjure_spell(user_input, context)
+        spell.apply(context)
+
+    @staticmethod
+    def _conjure_spell(user_input: UserInput, context: World) -> Effect[World]:  # Optional[Spell]:
+        for cost, make_spell in spell_list:
+            spell = make_spell(user_input.cursor_position)
+            if not cost.check(context.player): continue
+            # if not spell.precondition.check(player): continue
+            cost.apply(context.player)
+            return spell
+        else:
+            return create_fireball_spell(user_input.cursor_position) # NoEffect() #
+
+
 def spawn_starting_orbs(state: Scene) -> None:
-        for _ in range(5):
-            state._context.level.spawn_orb(1)
+    for _ in range(5):
+        state._context.level.spawn_orb(1)
+
 
 def create_fight_scene(context: World, presenter: Presenter) -> Scene:
     return Scene(
         context,
-        #make_move_system(),
-        #make_orb_system(),
-        #make_spell_system(),
         MoveSystem(),
-        DrawFightSystem(presenter),#make_fight_presenter(presenter)
+        SpawnOrbSystem(),
+        ProjectileSystem(),
+        SpellSystem(),
+        DrawFightSystem(presenter),
         start=spawn_starting_orbs
     )
 

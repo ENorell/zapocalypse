@@ -67,6 +67,7 @@ class PygameView:
             left_key=pygame.key.get_pressed()[pygame.K_LEFT],
             up_key=pygame.key.get_pressed()[pygame.K_UP],
             down_key=pygame.key.get_pressed()[pygame.K_DOWN],
+            mouse_position=PixelVector(*pygame.mouse.get_pos()),
         )
         try:
             self._controller.update(event)

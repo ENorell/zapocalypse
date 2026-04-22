@@ -67,6 +67,42 @@ class Player:
     def give_element(self, element: Element):
         self._elements.appendleft(element)
 
+
+class Component[T, S](Protocol):
+    def update(self, arg1: T, arg2: S) -> None: ...
+
+class Player2:
+    def __init__(self) -> None:
+        # State
+        self.position
+        self.velocity
+        #present_component
+        #
+        ...
+    def update(self, user_input, world) -> None:
+        ...
+
+
+class Projectile:
+    def __init__(self, position: WorldVector, direction: WorldVector, velocity: float, effect) -> None: # dependent on effect...?
+        self.position = position
+        self._direction = direction
+        self._velocity = velocity
+        self._effect = effect
+    
+    def fly(self, duration: timedelta) -> None: # Here or in system?
+        magnitude = math.hypot(*self._direction)
+        distance = self._velocity * duration.total_seconds()
+        if not distance or not magnitude:
+            return
+        self.position = WorldVector(
+            self.position.x + self._direction.x * distance / magnitude,
+            self.position.y + self._direction.y * distance / magnitude,
+        )
+        
+    def collide(self): ...
+
+
 class Level:
     def __init__(self, walls: list[Wall], orbs: Optional[list[ElementOrb]] = None):
         self._walls = walls

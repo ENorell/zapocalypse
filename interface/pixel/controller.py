@@ -2,8 +2,9 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from interactors.scene import UserInput
+from interface.pixel.render_model import PixelVector
 from interface.state_machine import StateMachine
-
+from interface.pixel.camera import transform_pixel_to_world
 
 @dataclass(frozen=True)
 class DeviceEvent:
@@ -15,7 +16,7 @@ class DeviceEvent:
     up_key: bool = False
     down_key: bool = False
     space_key: bool = False
-
+    mouse_position: PixelVector = (0, 0)
 
 
 class PixelController:
@@ -31,6 +32,7 @@ class PixelController:
             left=device_events.left_key,
             up=device_events.up_key,
             down=device_events.down_key,
+            cursor_position=transform_pixel_to_world(device_events.mouse_position)
         )
 
         self._state_machine.update(user_input)

@@ -34,6 +34,9 @@ class OrbModel(WorldPresenterModel):
     element: Element
 
 @dataclass(frozen=True)
+class ProjectileModel(WorldPresenterModel): ...
+
+@dataclass(frozen=True)
 class OrbSlots(PresenterModel):
     elements: Sequence[Optional[Element]]
 

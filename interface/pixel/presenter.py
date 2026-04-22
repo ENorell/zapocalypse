@@ -2,7 +2,8 @@ from typing import Optional, Sequence
 
 from domain.model import WorldVector, Element, WallType  # Red flag?
 from interactors.presenter_model import PresenterModel, OrbSlots, PlayerModel, OrbModel, StartButton, QuitButton, \
-    WallModel
+    WallModel, ProjectileModel
+from interface.pixel.camera import transform_world_to_pixel
 from interface.pixel.render_model import PixelVector, RenderModel, Asset
 from interface.pixel.asset_config import Graphic
 
@@ -12,11 +13,6 @@ class PresenterError(Exception): ...
 class MissingAssetError(PresenterError): pass
 
 class UnknownModelType(PresenterError): pass
-
-
-def transform_world_to_pixel(world_coordinate: WorldVector) -> PixelVector:
-    x, y, _ = world_coordinate
-    return PixelVector(round(100*x), round(100*y))
 
 
 class PixelPresenter:
@@ -37,13 +33,15 @@ class PixelPresenter:
         self.render_models.sort(key=lambda x: x.z_position)
 
     def _get_render_models(self, presenter_model: PresenterModel) -> list[RenderModel]:
-        match presenter_model:
+        match presenter_model: # Replace with polymorphism?
             case PlayerModel(id_, position):
                 return [self._draw_world_entity(id_, position, Graphic.PLAYER, 1.0)]
             case OrbModel(id_, position, element):
                 return [self._draw_world_entity(id_, position, _get_element_graphic(element), 1.0)]
             case WallModel(id_, position, wall_type):
                 return [self._draw_world_entity(id_, position, _get_wall_graphic(wall_type), 1.0)]
+            case ProjectileModel(id_, position):
+                return [self._draw_world_entity(id_, position, Graphic.FIRE_ORB_SLOT, 1.0)]
             case OrbSlots(orbs):
                 return _draw_orb_ui(self._assets, orbs, 100.0)
             case StartButton(id_):

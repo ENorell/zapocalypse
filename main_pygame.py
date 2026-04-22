@@ -22,12 +22,12 @@ def main() -> None:
         [Wall(WallType.STONE, WorldVector(5, 5, 1))],
         [ElementOrb(Element.FIRE, WorldVector(3, 3, 1))]
     )
-    context=World(caster=player, level=level, players=[player])
+    world=World(player=player, level=level, projectiles=[])
 
     state_machine = StateMachine(
         scenes={
-            SceneChoice.START_MENU: create_start_menu_scene(context, presenter), #StartMenu(presenter),#
-            SceneChoice.FIGHT: create_fight_scene(context, presenter),#FightScene(presenter, player, level)
+            SceneChoice.START_MENU: create_start_menu_scene(world, presenter),
+            SceneChoice.FIGHT: create_fight_scene(world, presenter),
         },
         start_scene=SceneChoice.START_MENU
     )

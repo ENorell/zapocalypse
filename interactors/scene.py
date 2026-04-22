@@ -1,9 +1,10 @@
 from typing import Protocol, Callable
-from abc import ABC, abstractmethod
 from datetime import timedelta
 from enum import Enum, auto
 from dataclasses import dataclass, field
 
+from domain.model import WorldVector
+from domain.spell import World
 from interactors.presenter_model import PresenterModel
 
 
@@ -20,15 +21,7 @@ class UserInput:
     down: bool = False
     confirm: bool = False
     selected_ids: list[int] = field(default_factory=list) #Set?
-
-
-# class Scene(ABC):
-#     @abstractmethod
-#     def update(self, user_input: UserInput) -> None: ...
-# 
-#     def start(self) -> None: ...
-# 
-#     def cleanup(self) -> None: ...
+    cursor_position: WorldVector = WorldVector(0, 0)
 
 
 class SceneChoice(Enum):
@@ -48,8 +41,6 @@ class SceneSwitch(Exception):  # Counts as "control flow"? Bad idea?
         self.scene = scene
 
 
-from domain.spell import World
-
 class System(Protocol):
     def update(self, user_input: UserInput, context: World): ...
 
@@ -57,19 +48,16 @@ class System(Protocol):
 class Scene:
     def __init__(self,
                  context: World,
-                 *systems: System,  #Callable[[UserInput, Context], None], #Effect[Context]],
+                 *systems: System,
                  start: Callable[["Scene"], None] = lambda _: None,
                  cleanup: Callable[["Scene"], None] = lambda _: None,
                  ) -> None:
         self._context = context
         self._systems = systems
-        self._start    = start
-        self._cleanup  = cleanup
+        self._start   = start
+        self._cleanup = cleanup
 
-    def update(self, user_input: UserInput) -> None: # Should also take context/world?
-        #map(lambda system: system(user_input).apply(self.context), self.systems)
-        #map(lambda system: system(user_input, self.context), self.systems)
-        #map(lambda system: system.update(user_input, self.context), self.systems)
+    def update(self, user_input: UserInput) -> None:
         for system in self._systems:
             system.update(user_input, self._context)
 

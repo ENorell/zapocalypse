@@ -1,5 +1,3 @@
-import random
-
 import math
 from collections import Counter
 from datetime import timedelta
@@ -7,19 +5,18 @@ from typing import Protocol, Sequence, Optional, Callable
 from dataclasses import dataclass
 from random import randint
 
-from domain.model import Element, Player, Level, WorldVector, ElementOrb, Wall
+from domain.model import Element, Player, Level, WorldVector, ElementOrb, Wall, Projectile
 import domain.events as events
-from interactors.scene import UserInput
 
 
 @dataclass(frozen=True)
 class World:
-    caster: Player
+    player: Player
     level: Level
-    players: list[Player]
+    projectiles: list[Projectile]
 
 
-class Effect[T](Protocol): #T to handle any type?
+class Effect[T](Protocol):
     def apply(self, context: T) -> None: ...
 
 
@@ -31,12 +28,19 @@ class EffectSequence[T]:
         for effect in self._effects:
             effect.apply(context)
 
+# Might just as well go all the way in generics?
+# class Query[T, S](Protocol):
+#     def evaluate(self, input_: T) -> S: ...
+# class Command[T](Protocol):
+#     def apply(self, input_: T) -> None: ...
+#     #__call__?
 
 class Spell:
     def __init__(self, name: str, effect: Effect[World]):
         self._name = name
         self._effect = effect
-        #cost
+        #cost?
+        #precondition?
 
     def apply(self, context: World) -> None: # Just call apply and implement effect interface?...
         self._effect.apply(context)
@@ -46,35 +50,34 @@ class Target[T](Protocol): #Sort of the same as number?
     def resolve(self, context: World) -> T: ...
 
 class CasterPlayerTarget:
-    def resolve(self, context: World) -> Player:
-        return context.caster
+    @staticmethod
+    def resolve(context: World) -> Player:
+        return context.player
 
-class CasterPositionTarget:
+class CasterPositionTarget: # Just do casterplayertarget and take position attribute instead?
     def resolve(self, context: World) -> WorldVector:
-        return context.caster.position
+        return context.player.position
 
 class CasterFacingDirectionTarget:
     def resolve(self, context: World) -> WorldVector:
         pass
 
-a: Target[Player] = CasterPlayerTarget()
 
-class Number[T: (int, float)](Protocol): # Value?
+class Number[T: (int, float)](Protocol): # Value? FutureValue? DeferredValue?
     def evaluate(self, context: World) -> T: ... # Context!?
 
-class ExactNumber[T: (int, float)]:
+class ExactValue[T]:
     def __init__(self, value: T) -> None:
         self._value: T = value
-
-    def evaluate(self, _) -> T:
+    def resolve(self, _) -> T:
         return self._value
+    def evaluate(self, arg) -> T: # Target and Number could just be one generic?
+        return self.resolve(arg)
 
-b: Number[float] = ExactNumber(10)
 
 class RandomNumber:
     def __init__(self, from_number: int, to_number: int):
         self._between = (from_number, to_number)
-
     def evaluate(self, _) -> int:
         return randint(*self._between)
 
@@ -82,30 +85,15 @@ class RandomNumber:
 class Condition[T](Protocol):
     def check(self, arg: T) -> bool: ...
 
-# class ElementCondition:
-#     def __init__(self, elements: list):
-#         self._elements = elements
-#
-#     def check(self, arg: Player) -> bool:
-#         return False
-#
-# has_elements: Condition[Player] = ElementCondition(["fire", "water"])
-
-
-# class ICost(Protocol): #Condition?
-#     def can_afford(self, player: Player) -> bool: ...
-#     def pay_cost(self, player: Player) -> bool: ...
-#
-# class Cost:
-#     def __init__(self, charge: Effect[Player], affords: Condition[Player]) -> None:
-#         self._charge = charge
-#         self._affords = affords
-#
-#     def affords(self) -> bool:
-#         return self._affords.check()
 
 class Cost(Condition[Player], Effect[Player], Protocol): #Any cleaner way?
     ...
+
+class NoCost:
+    @staticmethod
+    def check(_) -> bool: return True
+    @staticmethod
+    def apply(_) -> None: pass
 
 class ElementCost:
     def __init__(self, *elements: Element) -> None:
@@ -127,12 +115,20 @@ class HealthCost:
         return True
 
     def apply(self, player: Player) -> None:
-        health_cost = self._amount.evaluate()
+        health_cost = self._amount.evaluate(player)
         player.damage(health_cost)
 
+class CombinedCost:
+    def __init__(self, *costs: Cost) -> None:
+        self._costs = costs
+    def check(self, player: Player) -> bool:
+        return all(cost.check(player) for cost in self._costs)
+    def apply(self, player: Player) -> None:
+        for cost in self._costs:
+            cost.apply(player)
 
 class For[T]:
-    def __init__(self, target: Target[Player], condition: Condition[Player]):#t: T, s: S) -> None:
+    def __init__(self, target: Target[Player], condition: Condition[Player]):
         self._target = target
         self._condition = condition
 
@@ -153,10 +149,17 @@ class ProjectileEffect:
         self._origin = origin # needs injection really?
         self._direction = direction
         self._velocity = velocity
-        self._damage = damage
+        self._damage = damage # Effect?
     
-    def apply(self, context: World) -> None:
-        pass
+    def apply(self, world: World) -> None:
+        world.projectiles.append(
+            Projectile(
+                position=self._origin.resolve(world),
+                direction=self._direction.resolve(world),
+                velocity=self._velocity.evaluate(world),
+                effect=NoEffect(),
+            )
+        )
 
 
 class HealEffect:
@@ -164,9 +167,9 @@ class HealEffect:
         self._target = target
         self._amount = amount
     
-    def apply(self, context: World) -> None:
-        target = self._target.resolve(context)
-        heal_amount = self._amount.evaluate()
+    def apply(self, world: World) -> None:
+        target = self._target.resolve(world)
+        heal_amount = self._amount.evaluate(world)
         target.heal(heal_amount)
 
 
@@ -223,17 +226,6 @@ class PlayerRunSpeed:
         return player.get_speed()
 
 
-
-class RootedEffect:
-    def __init__(self,
-                 target: Target[Player],
-                 ) -> None:
-        self._target = target
-        
-    def apply(self, context: World) -> None:
-        pass
-
-
 class NoEffect[T]:
     def apply(self, context: T) -> None:
         pass
@@ -251,17 +243,6 @@ class EffectConditional[T]:
             self._on_fail.apply(context)
 
 
-# class Collide[T]:
-#     def __init__(self, player: Target[Player], collider: Target[T]): # TargetS
-#         self._player = player # Also generic?
-#         self._collider = collider
-#         # Different collision detection approaches?
-#     
-#     def check(self, context: Context) -> bool:
-#         player = self._player.resolve(context)
-#         collider = self._collider.resolve(context)
-        
-
 class PickupOrb:
     def __init__(self, player: Target[Player], orb: Target[Optional[ElementOrb]]):
         self._player = player
@@ -272,7 +253,7 @@ class PickupOrb:
         if orb := self._orb.resolve(context):
             context.level.remove_orb(orb)
             player.give_element(orb.element)
-            player.events.append(events.OrbPickup())
+            player.events.append(events.OrbPickup()) # World events?
 
 class HasPosition(Protocol):
     position: WorldVector
@@ -316,23 +297,17 @@ class ForEach[T]:
             self._effect.apply(target)
 
 
-class AllPlayers:
-    def resolve(self, context: World) -> list[Player]:
-        return context.players
-
-test: Target[Sequence[Player]] = AllPlayers()
-test2: ForEach[Player] = ForEach(NoEffect(), AllPlayers())
 
 # Could they all be functions?
-class InputHandler[T](Protocol):
-    def resolve(self, user_input: UserInput) -> T: ...
-#ih = Callable[T][[UserInput], T]
-
-class InputDirection:
-    def resolve(self, user_input: UserInput) -> WorldVector: ...
-
-class IsStartButtonClicked:
-    def resolve(self, user_input: UserInput) -> bool: ...
+# class InputHandler[T](Protocol):
+#     def resolve(self, user_input: UserInput) -> T: ...
+# #ih = Callable[T][[UserInput], T]
+# 
+# class InputDirection:
+#     def resolve(self, user_input: UserInput) -> WorldVector: ...
+# 
+# class IsStartButtonClicked:
+#     def resolve(self, user_input: UserInput) -> bool: ...
 
 # direction + duration can be created from input
 def create_run_command(direction: WorldVector, duration: timedelta) -> Effect[World]:
@@ -344,7 +319,7 @@ def create_run_command(direction: WorldVector, duration: timedelta) -> Effect[Wo
             CasterPlayerTarget()
         )
     )
-    return EffectConditional(
+    return EffectConditional( # Probably a lot better to just set velocity here and make a physics system handle collisions...
         condition=AnyResult(
             Touching(
                 target=destination,
@@ -352,145 +327,102 @@ def create_run_command(direction: WorldVector, duration: timedelta) -> Effect[Wo
             )
         ),
         on_pass=NoEffect(),
-        on_fail=EffectSequence(
-            DisplaceEffect(
-                player=CasterPlayerTarget(),
-                destination=destination
-            ),
-            PickupOrb(
-                player=CasterPlayerTarget(),
-                orb=Touching(
-                    CasterPositionTarget(),
-                    AllOrbs()
-                )
+        on_fail=DisplaceEffect(
+            player=CasterPlayerTarget(),
+            destination=destination
             )
-        )
     )
 
-
-# Effects inside domain and "Systems" outside? Take world vs userinput respectively? Systems return effects?
-class RunEffect: #System
-    def __init__(self):
-        self._direction = InputDirection()
-        self._duration = FrameDuration()
-
-    def update(self, user_input: UserInput) -> Effect[World]:
-        return create_run_command(
-            self._direction.resolve(user_input),
-            self._duration.resolve(user_input)
-        )
-
-def run_system(
-        input_direction: Callable[[UserInput], WorldVector],
-        frame_duration:  Callable[[UserInput], timedelta]
-        ) -> Callable[[UserInput], Effect[World]]:
-    def inner(user_input: UserInput) -> Effect[World]:
-        return create_run_command(
-            input_direction(user_input),
-            frame_duration(user_input)
-        )
-    return inner
-
-run_system(
-    ...,
-    lambda u: u.delta_time
-)
-
-def make_move_system() -> Callable[[UserInput], Effect[World]]:
-    move_direction: Callable[[UserInput], WorldVector] = lambda i: WorldVector(i.right - i.left, i.down - i.up)
-    frame_duration: Callable[[UserInput], timedelta] = lambda i: i.delta_time
-    return lambda i: create_run_command(move_direction(i), frame_duration(i))
-
-
-
-class SpawnOrb: # Better as function...
-    def __init__(self, position_selector: Callable[[World], WorldVector], element_selector: Callable[[World], Element]) -> None:
-        self._position_selector = position_selector
-        self._element_selector = element_selector
-
-    def apply(self, context: World) -> None:
-        position = self._position_selector(context)
-        element = self._element_selector(context)
-        context.level.spawn_orb(1.0)
-
-
-def repeatable_timer(frequency: float) -> Callable[[timedelta], bool]:
-    time_counted = 0.0
-    def inner(tick_time: timedelta) -> bool:
-        nonlocal time_counted
-        time_counted += tick_time.total_seconds()
-        if time_counted > frequency:
-            time_counted -= frequency
-            return True
-        return False
-    return inner
-
-
-def make_orb_system() -> Callable[[UserInput], Effect[World]]: #orb_timer: Callable[[UserInput], bool]
-    orb_timer = repeatable_timer(10.0)
-    def orb_system(user_input: UserInput) -> Effect[World]:
-        #nonlocal orb_timer
-        if not orb_timer(user_input.delta_time):
-            return NoEffect()
-        return SpawnOrb(
-            position_selector=lambda _: WorldVector(random.randint(1,10), random.randint(1,10)),
-            element_selector=lambda _: random.choice(list(Element))
-        )
-    return orb_system
-
-
-class SpawnOrbSystem: # Generalize?
-    def __init__(self):
-        self._spawn_timer: Callable[[timedelta], bool] = repeatable_timer(10.0) # Inject or instantiate?
-        self._position_selector = lambda _: WorldVector(random.randint(1, 10), random.randint(1, 10))
-        self._element_selector = lambda _: random.choice(list(Element))
-        
-    def update(self, user_input: UserInput, context: World) -> None:
-        if not self._spawn_timer(user_input.delta_time):
-            return
-        position = self._position_selector(context)
-        element = self._element_selector(context)
-        context.level.spawn_orb(1.0)
-    
-
-
-# def switch_state_from_start(state_switcher: Callable[[str], None]):
-#     def system(user_input: UserInput) -> Effect[Context]:
-#         def effect(context: Context) -> None:
-#             pass
-#         return effect
-# 
-#     return system
+#
+# # Effects inside domain and "Systems" outside? Take world vs userinput respectively? Systems return effects?
+# class RunEffect: #System
+#     def __init__(self):
+#         self._direction = InputDirection()
+#         self._duration = FrameDuration()
+#
+#     def update(self, user_input: UserInput) -> Effect[World]:
+#         return create_run_command(
+#             self._direction.resolve(user_input),
+#             self._duration.resolve(user_input)
+#         )
+#
+# def run_system(
+#         input_direction: Callable[[UserInput], WorldVector],
+#         frame_duration:  Callable[[UserInput], timedelta]
+#         ) -> Callable[[UserInput], Effect[World]]:
+#     def inner(user_input: UserInput) -> Effect[World]:
+#         return create_run_command(
+#             input_direction(user_input),
+#             frame_duration(user_input)
+#         )
+#     return inner
+#
+# run_system(
+#     ...,
+#     lambda u: u.delta_time
+# )
+#
+# def make_move_system() -> Callable[[UserInput], Effect[World]]:
+#     move_direction: Callable[[UserInput], WorldVector] = lambda i: WorldVector(i.right - i.left, i.down - i.up)
+#     frame_duration: Callable[[UserInput], timedelta] = lambda i: i.delta_time
+#     return lambda i: create_run_command(move_direction(i), frame_duration(i))
 
 
 
-def create_fireball_spell(user_input: UserInput) -> Spell:#Callable[[UserInput], Spell]:
+# class SpawnOrb: # Better as function...
+#     def __init__(self, position_selector: Callable[[World], WorldVector], element_selector: Callable[[World], Element]) -> None:
+#         self._position_selector = position_selector
+#         self._element_selector = element_selector
+#
+#     def apply(self, context: World) -> None:
+#         position = self._position_selector(context)
+#         element = self._element_selector(context)
+#         context.level.spawn_orb(1.0)
+
+
+# def make_orb_system() -> Callable[[UserInput], Effect[World]]: #orb_timer: Callable[[UserInput], bool]
+#     orb_timer = repeatable_timer(10.0)
+#     def orb_system(user_input: UserInput) -> Effect[World]:
+#         #nonlocal orb_timer
+#         if not orb_timer(user_input.delta_time):
+#             return NoEffect()
+#         return SpawnOrb(
+#             position_selector=lambda _: WorldVector(random.randint(1,10), random.randint(1,10)),
+#             element_selector=lambda _: random.choice(list(Element))
+#         )
+#     return orb_system
+
+
+
+
+
+class RelativeDirection:
+    def __init__(self, position_a: Target[WorldVector], position_b: Target[WorldVector]) -> None:
+        self._position_a = position_a
+        self._position_b = position_b
+    def resolve(self, world: World) -> WorldVector:
+        x_a, y_a, _ = self._position_a.resolve(world)
+        x_b, y_b, _ = self._position_b.resolve(world)
+        return WorldVector(x_a-x_b, y_a-y_b)
+
+
+def create_fireball_spell(target: WorldVector) -> Spell:
     return Spell(
         name="Fire Ball",
         effect=ProjectileEffect(
             element=Element.FIRE,
             origin=CasterPositionTarget(),
-            direction=input_direction(user_input),#CasterFacingDirectionTarget(),
-            velocity=ExactNumber(5.0),
-            damage=ExactNumber(10)
+            direction=RelativeDirection(
+                ExactValue(target),
+                CasterPositionTarget(),
+            ),
+            velocity=ExactValue(5.0),
+            damage=ExactValue(10)
         )
     )
 
 
-def create_fireball_spell() -> Spell:
-    return Spell(
-        name="Fire Ball",
-        effect=ProjectileEffect(
-            element=Element.FIRE,
-            origin=CasterPositionTarget(),
-            direction=CasterFacingDirectionTarget(),
-            velocity=ExactNumber(5.0),
-            damage=ExactNumber(10)
-        )
-    )
-
-
-def create_heal_spell() -> Spell:
+def create_heal_spell(_) -> Spell:
     return Spell(
         name="Heal",
         effect=HealEffect(
@@ -503,73 +435,46 @@ def create_heal_spell() -> Spell:
 def create_push_spell() -> Spell:
     pass
 
+#
+# spell_map: dict[Cost, Spell] = { # Order important? Make list of tuples?
+#     ElementCost(Element.FIRE, Element.FIRE,  Element.WIND): create_fireball_spell(),
+#     ElementCost(Element.WIND, Element.WATER, Element.WATER): create_heal_spell(),
+# }
+#
+#
+# # SpellFactory
+# def conjure_spell(context: World) -> Effect[World]:# Optional[Spell]:
+#     for cost, spell in spell_map.items():
+#         if not cost.check(context.player): continue
+#         # Potentially check other preconditions?
+#         cost.apply(context.player)
+#         return spell
+#     else:
+#         return NoEffect() #None # NoSpell?
+#
+#
+# class ConjureSpell:
+#     #def __init__(self, user_input: UserInput) -> None:
+#     def apply(self, context: World) -> None:  # Optional[Spell]:
+#         for cost, spell in spell_map.items():
+#             if not cost.check(context.player): continue
+#             # Potentially check other preconditions?
+#             cost.apply(context.player)
+#             spell.apply(context)
+#             return
+#
+#
+# def make_spell_system() -> Callable[[UserInput], Effect[World]]:
+#     cast_spell_input: Callable[[UserInput], bool] = lambda i: i.space
+#     def spell_system(user_input: UserInput) -> Effect[World]:
+#         if not cast_spell_input(user_input):
+#             return NoEffect()
+#         return ConjureSpell()
+#     return spell_system
 
-spell_map: dict[Cost, Spell] = { # Order important? Make list of tuples?
-    ElementCost(Element.FIRE, Element.FIRE,  Element.WIND): create_fireball_spell(),
-    ElementCost(Element.WIND, Element.WATER, Element.WATER): create_heal_spell(),
-}
 
-
-# SpellFactory
-def conjure_spell(context: World) -> Effect[World]:# Optional[Spell]:
-    for cost, spell in spell_map.items():
-        if not cost.check(context.player): continue
-        # Potentially check other preconditions?
-        cost.apply(context.player)
-        return spell
-    else:
-        return NoEffect() #None # NoSpell?
-
-
-class ConjureSpell:
-    #def __init__(self, user_input: UserInput) -> None:
-    def apply(self, context: World) -> None:  # Optional[Spell]:
-        for cost, spell in spell_map.items():
-            if not cost.check(context.player): continue
-            # Potentially check other preconditions?
-            cost.apply(context.player)
-            spell.apply(context)
-            return
-
-
-def make_spell_system() -> Callable[[UserInput], Effect[World]]:
-    cast_spell_input: Callable[[UserInput], bool] = lambda i: i.space
-    def spell_system(user_input: UserInput) -> Effect[World]:
-        if not cast_spell_input(user_input):
-            return NoEffect()
-        return ConjureSpell()
-    return spell_system
-
-
-spell_list: list[tuple[Cost, Callable[[UserInput], Spell]]] = [ # prio from top to bottom
-    (ElementCost(Element.FIRE, Element.FIRE,  Element.WIND), create_fireball_spell),
+spell_list: list[tuple[Cost, Callable[[WorldVector], Spell]]] = [ # prio from top to bottom
+    (ElementCost(Element.FIRE, Element.FIRE,  Element.WIND), create_fireball_spell), # fireball factory
     (ElementCost(Element.WIND, Element.WATER, Element.WATER), create_heal_spell)
 ]
-
-class SpellSystem:
-    def __init__(self):
-        self._cast_spell_input: Callable[[UserInput], bool] = lambda i: i.space
-    
-    def update(self, user_input: UserInput, context: World) -> None:
-        if not self._cast_spell_input(user_input):
-            return
-        spell = self._conjure_spell(user_input, context)
-        spell.apply(context)
-
-    def _conjure_spell(self, user_input: UserInput, context: World) -> Effect[World]:# Optional[Spell]:
-        for cost, spell in spell_list:
-            if not cost.check(context.player): continue
-            # Potentially check other preconditions?
-            cost.apply(context.player)
-            return spell(user_input)
-        else:
-            return NoEffect()
-
-
-# def make_fight_scene(context: Context) -> Callable[[UserInput], None]:
-#     def inner(user_input: UserInput) -> None:
-#         run_system(..., lambda u: u.delta_time)(user_input).apply(context)
-#         orb_system(user_input).apply(context)
-#         spell_system(user_input).apply(context)
-#     return inner
 
