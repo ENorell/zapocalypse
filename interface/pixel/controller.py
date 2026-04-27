@@ -16,7 +16,7 @@ class DeviceEvent:
     up_key: bool = False
     down_key: bool = False
     space_key: bool = False
-    mouse_position: PixelVector = (0, 0)
+    mouse_position: PixelVector = PixelVector(0, 0)
 
 
 class PixelController:

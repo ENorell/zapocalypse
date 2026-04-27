@@ -3,7 +3,7 @@ from interface.pixel.render_model import PixelVector
 
 
 def transform_world_to_pixel(world_coordinate: WorldVector) -> PixelVector:
-    x, y, _ = world_coordinate
+    x, y = world_coordinate
     return PixelVector(round(x*100), round(y*100))
 
 
