@@ -2,8 +2,8 @@ from typing import Callable
 from datetime import timedelta
 import random
 
-from domain.model import WorldVector, Level, Player, move, Element
-from domain.spell import spell_list, World, create_run_command, Effect, create_fireball_spell
+from domain.model import WorldVector, Level, Player, Element
+from domain.spell import spell_list, World, create_run_command, Effect, create_fireball_spell, OrbSpawner
 from interactors.presenter_model import PlayerModel, WallModel, OrbModel, OrbSlots, PresenterModel, ProjectileModel
 from interactors.scene import Scene, Presenter, UserInput
 
@@ -47,7 +47,7 @@ class MoveSystem: # PlayerControlSystem? One per player?
 class ProjectileSystem:
     @staticmethod
     def _is_outside_world(position: WorldVector) -> bool: # Rudimentary logic to clean up projectiles
-        x, y, _ = position
+        x, y = position
         return abs(x) > 100 or abs(y) > 100
 
     @staticmethod
@@ -65,13 +65,14 @@ class SpawnOrbSystem:  # Generalize?
         self._spawn_timer: Callable[[timedelta], bool] = self._repeatable_timer(3.0)  # Inject or instantiate?
         self._position_selector = lambda _: WorldVector(random.randint(1, 10), random.randint(1, 10))
         self._element_selector = lambda _: random.choice(list(Element))
+        self._orb_spawner = OrbSpawner()
 
     def update(self, user_input: UserInput, context: World) -> None:
         if not self._spawn_timer(user_input.delta_time):
             return
         position = self._position_selector(context)
         element = self._element_selector(context)
-        context.level.spawn_orb(1.0)
+        self._orb_spawner.spawn_object_at(position, element, context)
 
     @staticmethod
     def _repeatable_timer(frequency: float) -> Callable[[timedelta], bool]:
@@ -109,8 +110,8 @@ class SpellSystem:
 
 
 def spawn_starting_orbs(state: Scene) -> None:
-    for _ in range(5):
-        state._context.level.spawn_orb(1)
+    orb_spawner = OrbSpawner()
+    orb_spawner.spawn_object_at(WorldVector(1, 1), Element.FIRE, state._context)
 
 
 def create_fight_scene(context: World, presenter: Presenter) -> Scene:

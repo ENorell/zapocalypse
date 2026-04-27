@@ -6,13 +6,12 @@ from datetime import timedelta
 import math
 import random
 from abc import ABC, abstractmethod
-
-
+import domain.events as events
+from domain.spell import DotEffect # Circle ref problem?
 
 class WorldVector(NamedTuple):
     x: float
     y: float
-    z: float = 0.0
 
 
 class Element(Enum):
@@ -21,51 +20,146 @@ class Element(Enum):
     WIND = auto()
     ROOT = auto()
     THUNDER = auto()
-
-class PhysicalObject(Protocol):
-    @property
-    def stackable(self) -> bool: ...
-    @property
-    def position(self) -> WorldVector: ...
-
-@dataclass(frozen=True)
-class ElementOrb:
-    element: Element
-    position: WorldVector
-    stackable = False
-
 class WallType(Enum):
     BUSH = auto()
     STONE = auto()
 
-@dataclass(frozen=True)
+class TileType(Enum):
+    MUD = auto()
+    WATER = auto()
+    FIRE = auto()
+
+class MoveType(Enum):
+    DEFAULT = auto()
+    FLY = auto()
+    SWIM = auto()
+
+class Spawnable(Protocol):
+    @property
+    def position(self) -> WorldVector:
+        ...
+
+    def on_spawn(self):
+        ...
+
+# @dataclass(frozen=True) # Måste vara mutable om den ska kunna gå att flytta?
+class ElementOrb:
+    def __init__(self, element: Element, position: WorldVector):
+        self.element = element
+        self.position = position
+        self.movable = True
+
+    def move_entity(self, destination: WorldVector) -> None:
+        self.position = destination
+
+    def on_spawn(self):
+        ...
+
 class Wall:
-    wall_type: WallType
-    position: WorldVector
-    stackable = False
+    def __init__(self, wall_type: WallType, position: WorldVector):#, on_touching_effects: Sequence[Optional[Effect]]):
+        self.wall_type = wall_type
+        self.position = position
+        self.movable = False
+
+    def on_spawn(self):
+        ...
+
+class Tile:
+    def __init__(self, tile_type: TileType, position: WorldVector):#, on_traverse_effects: Sequence[Optional[Effect]]):
+        self.tile_type = tile_type
+        self.position = position
+        # self.on_traverse_effects = on_traverse_effects
+
+    def on_spawn(self):
+        ...
 
 class Event(ABC): ...
 
+class MovableEntity(Protocol):
+    movable: bool
+
+    def move_entity(self, destination: WorldVector) -> None:
+        ...
+
+
+class OrbCollector(Protocol): # Börjar bli lite väl mycket protocols kanske?
+    def collect_orb(self, element: Element):
+        ...
+
+    def call_event(self, element: events.Event):
+        ...
+
+class OrbHolder(Protocol): # Börjar bli lite väl mycket protocols kanske?
+    def remove_orb(self, orb: ElementOrb):
+        ...
+
 
 class Player:
-    base_run_speed = 8
+    base_speed = 8.0
     max_no_elements = 3
-    def __init__(self, position: WorldVector, elements: Optional[list[Element]] = None) -> None:
+    max_health = 100
+    def __init__(self, position: WorldVector, elements: Optional[list[Element]]) -> None:
         #health
         self.position = position
         self._elements = deque(elements or [], self.max_no_elements)
-        self.events: list[Event] = []
-
-    def get_speed(self) -> float:
-        """Return speed after effects etc."""
-        return self.base_run_speed
+        self.events: list[events.Event] = []
+        self.movable = True
+        self._move_types: list[MoveType] = []
+        self._speed_buffs: list[int] = []
+        self._health = self.max_health
+        self._speed = self.base_speed
+        self._active_effects: list[DotEffect] = []
 
     @property
     def elements(self) -> list[Element]:
         return list(self._elements)
 
-    def give_element(self, element: Element):
+    @property
+    def move_types(self) -> list[MoveType]:
+        return list(self._move_types)
+    
+    @property
+    def health(self) -> int:
+        return self._health
+    
+    @property
+    def speed(self) -> float:
+        return self._speed
+    
+    def add_dot_effect(self, effect: DotEffect) -> None:
+        # for active_effect in self._active_effects:
+        #     if active_effect.effect == effect:
+        #         active_effect._remaining_ticks # Ändringar i Tick gör att denna kanske blir mer komplicerad?
+        self._active_effects.append(effect)
+
+    def remove_dot_effect(self, effect: DotEffect) -> None:
+        if effect in self._active_effects:
+            self._active_effects.remove(effect)
+
+    def apply_speed_change(self, delta_speed: float) -> None:
+        self._speed = max(self._speed + delta_speed, 0)
+    
+    def get_base_speed(self) -> float:
+        """Return speed after effects etc."""
+        return self.base_speed
+
+    def take_damage(self, damage_number: int):
+        self._health = max(self._health - damage_number, 0)
+
+    def heal(self, heal_number: int):
+        self._health = min(self._health + heal_number, self.max_health)
+
+    def collect_orb(self, element: Element) -> None:
         self._elements.appendleft(element)
+
+    def apply_move_type(self, move_type: MoveType) -> None:
+        self._move_types.append(move_type)
+
+    def move_entity(self, destination: WorldVector) -> None:
+        self.position = destination
+
+    def call_event(self, event: events.Event):
+        self.events.append(event)
 
 
 class Component[T, S](Protocol):
@@ -104,69 +198,11 @@ class Projectile:
 
 
 class Level:
-    def __init__(self, walls: list[Wall], orbs: Optional[list[ElementOrb]] = None):
-        self._walls = walls
-        self._orbs: list[ElementOrb] = orbs or []
-        self.events: list[Event] = []
-
-    @property
-    def walls(self) -> list[Wall]:
-        return list(self._walls)
-
-    @property
-    def orbs(self) -> list[ElementOrb]:
-        return list(self._orbs)
-
-    def free_spawn_positions(self, z_position: float) -> list[WorldVector]:
-
-        physical_objects = self.orbs + self.walls
-        occupied_positions = {(obj.position.x, obj.position.y) for obj in physical_objects if obj.position.z == z_position}
-
-        free_positions = [
-            WorldVector(x, y, z_position)
-            for x in range(7)
-            for y in range(8)
-            if (x, y) not in occupied_positions
-        ]
-
-        return free_positions
-
-    def collides_with_wall(self, target: WorldVector) -> bool:
-        return any(
-            math.dist(collide_entity.position, target) < 1
-            for collide_entity in self._walls
-        )
-
-    def get_touching_orb(self, target: WorldVector) -> Optional[ElementOrb]:
-        return next(
-            (
-                orb for orb in self._orbs
-                if math.dist(orb.position[:2], target[:2]) < 1
-            ),
-            None
-        )
+    def __init__(self) -> None:
+        self.walls: list[Wall] = []
+        self.orbs: list[ElementOrb] = []
+        self.tiles: list[Tile] = []
+        self.events: list[events.Event] = []
 
     def remove_orb(self, orb: ElementOrb) -> None:
-        self._orbs.remove(orb)
-
-    def spawn_orb(self, orb_position_z: float) -> None:
-        self._orbs.append(
-            ElementOrb(
-                element=random.choice(list(Element)),
-                position=random.choice(self.free_spawn_positions(orb_position_z)),
-            )
-        )
-
-
-def move(player: Player, target: WorldVector, level: Level) -> None:
-    if level.collides_with_wall(target):
-        player.events.append(events.Collision())
-        return
-
-    if orb := level.get_touching_orb(target):
-        level.remove_orb(orb)
-        player.give_element(orb.element)
-        player.events.append(events.OrbPickup())
-
-    player.position = target
-
+        self.orbs.remove(orb)

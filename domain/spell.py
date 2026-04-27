@@ -1,11 +1,12 @@
 import math
 from collections import Counter
 from datetime import timedelta
-from typing import Protocol, Sequence, Optional, Callable
+from typing import Protocol, Sequence, Optional, Callable, Iterable
 from dataclasses import dataclass
 from random import randint
+import random
 
-from domain.model import Element, Player, Level, WorldVector, ElementOrb, Wall, Projectile
+from domain.model import Element, Player, Level, WorldVector, ElementOrb, Wall, Projectile, MovableEntity, OrbCollector, OrbHolder, Tile, TileType, WallType, Spawnable
 import domain.events as events
 
 
@@ -15,56 +16,154 @@ class World:
     level: Level
     projectiles: list[Projectile]
 
+class AllOrbs:
+    def resolve(self, world: World) -> list[ElementOrb]:
+        return world.level.orbs
+class AllWalls:
+    def resolve(self, world: World) -> list[Wall]:
+        return world.level.walls
+class AllTiles:
+    def resolve(self, world: World) -> list[Tile]:
+        return world.level.tiles
 
-class Effect[T](Protocol):
-    def apply(self, context: T) -> None: ...
-
-
-class EffectSequence[T]:
-    def __init__(self, *effects: Effect[T]) -> None:
-        self._effects = effects
-
-    def apply(self, context: T) -> None:
-        for effect in self._effects:
-            effect.apply(context)
-
-# Might just as well go all the way in generics?
-# class Query[T, S](Protocol):
-#     def evaluate(self, input_: T) -> S: ...
-# class Command[T](Protocol):
-#     def apply(self, input_: T) -> None: ...
-#     #__call__?
-
-class Spell:
-    def __init__(self, name: str, effect: Effect[World]):
-        self._name = name
-        self._effect = effect
-        #cost?
-        #precondition?
-
-    def apply(self, context: World) -> None: # Just call apply and implement effect interface?...
-        self._effect.apply(context)
+## Spawn factories
 
 
-class Target[T](Protocol): #Sort of the same as number?
-    def resolve(self, context: World) -> T: ...
+class Spawner(Protocol):
+    def create_object(self) -> Spawnable:
+        ...
 
-class CasterPlayerTarget:
-    @staticmethod
-    def resolve(context: World) -> Player:
-        return context.player
+    def spawn_object(self) -> None:
+        spawnable = self.create_object()
+        spawnable.on_spawn() # Tvingande? Inga argument i metoden..
 
-class CasterPositionTarget: # Just do casterplayertarget and take position attribute instead?
-    def resolve(self, context: World) -> WorldVector:
-        return context.player.position
+class SpawnPositions(Protocol):
+    def resolve(self) -> Iterable[WorldVector]:
+        ...
 
-class CasterFacingDirectionTarget:
-    def resolve(self, context: World) -> WorldVector:
-        pass
+class AnySpawnPositions():
+    def __init__(self, base_spawn_positions: Iterable[WorldVector]):
+        self.base_spawn_positions = base_spawn_positions
 
+    def resolve(self) -> Iterable[WorldVector]:
+        yield from self.base_spawn_positions
+
+# class NonOccupiedSpawnPositions():
+#     def __init__(self, base_spawn_positions: SpawnPositions, occupying_objects: list[Spawnable]):
+#         self.base_spawn_positions = base_spawn_positions
+#         self.occupying_objects = occupying_objects
+
+#     def resolve(self) -> Iterable[WorldVector]:
+#         base_positions = set(self.base_spawn_positions.resolve())
+#         for pos in base_positions:
+#             if pos not any (obj.size.collides.occupied_positions:
+#                 yield pos
+
+class SpawnPositionsAroundPoint():
+    def __init__(self, spawn_positions: SpawnPositions, point: WorldVector):
+        self.spawn_positions = spawn_positions
+        self.point = point
+
+    def resolve(self) -> Iterable[WorldVector]:
+        x, y = self.point.x, self.point.y
+
+        offsets = [(0,1), (1,1), (1,0), (1,-1), (0,-1), (-1,-1), (-1,0), (-1,1)]
+
+        allowed_positions = {
+            WorldVector(x + dx, y + dy)
+            for dx, dy in offsets
+        }
+
+        for pos in self.spawn_positions.resolve():
+            if pos in allowed_positions:
+                yield pos 
+
+class PositionSelector(Protocol):
+    def __init__(self, spawn_positions: SpawnPositions):
+        ...
+
+    def select(self) -> WorldVector | None:
+        ...
+
+class RandomPositionSelector():
+    def __init__(self, spawn_positions: SpawnPositions):
+        self.spawn_positions = spawn_positions
+
+    def select(self) -> WorldVector | None:
+        new_base_positions = list(self.spawn_positions.resolve()) # Set sen list??
+        if not new_base_positions:
+            return None
+        return random.choice(new_base_positions)
+    
+class IngestedPositionSelector():
+    def __init__(self, spawn_position: WorldVector):
+        self.spawn_position = spawn_position
+
+    def select(self) -> WorldVector | None:
+        return self.spawn_position
+
+class OrbSpawner():
+    def create_object(self, spawn_position: WorldVector, element: Element) -> ElementOrb:
+        return ElementOrb(element, spawn_position)
+
+    def _trigger_spawn_event(self) -> None:
+        ...
+
+    def spawn_object(self, position_selector: PositionSelector, element: Element, world: World) -> None:
+        position = position_selector.select()
+        if position is None:
+            return
+        orb = self.create_object(position, element)
+        world.level.orbs.append(orb)
+
+    def spawn_object_at(self, position: WorldVector, element: Element, world: World) -> None:
+        orb = self.create_object(position, element)
+        world.level.orbs.append(orb)
+
+class WallSpawner():
+    def create_object(self, spawn_position: WorldVector, wall_type: WallType) -> Wall:
+        return Wall(wall_type, spawn_position)
+
+    def _trigger_spawn_event(self) -> None:
+        ...
+
+    def spawn_object(self, position_selector: PositionSelector, wall_type: WallType, world: World) -> None:
+        position = position_selector.select()
+        if position is None:
+            return
+        wall = self.create_object(position, wall_type)  # orb is ElementOrb
+        wall.on_spawn()
+        world.level.walls.append(wall)
+
+    def spawn_object_at(self, position: WorldVector, wall_type: WallType, world: World) -> None:
+        wall = self.create_object(position, wall_type)
+        world.level.walls.append(wall)
+
+
+class TileSpawner():
+    def create_object(self, spawn_position: WorldVector, tile_type: TileType) -> Tile:#, on_traverse_effects: list[Effect]) -> Tile:
+        return Tile(tile_type, spawn_position) #, on_traverse_effects)
+
+    def _trigger_spawn_event(self) -> None:
+        ...
+
+    def spawn_object(self, position_selector: PositionSelector, tile_type: TileType, world: World) -> None: #, on_traverse_effects: list[Effect]) -> None:
+        position = position_selector.select()
+        if position is None:
+            return
+        tile = self.create_object(position, tile_type)
+        tile.on_spawn()
+        world.level.tiles.append(tile)
+
+    def spawn_object_at(self, position: WorldVector, tile_type: TileType, world: World) -> None: #, on_traverse_effects: list[Effect]) -> None:
+        tile = self.create_object(position, tile_type)
+        world.level.tiles.append(tile)
+
+## Numbers
 
 class Number[T: (int, float)](Protocol): # Value? FutureValue? DeferredValue?
-    def evaluate(self, context: World) -> T: ... # Context!?
+    def evaluate(self, world: World) -> T: ... # Context!?
+
 
 class ExactValue[T]:
     def __init__(self, value: T) -> None:
@@ -73,8 +172,7 @@ class ExactValue[T]:
         return self._value
     def evaluate(self, arg) -> T: # Target and Number could just be one generic?
         return self.resolve(arg)
-
-
+    
 class RandomNumber:
     def __init__(self, from_number: int, to_number: int):
         self._between = (from_number, to_number)
@@ -82,60 +180,153 @@ class RandomNumber:
         return randint(*self._between)
 
 
-class Condition[T](Protocol):
-    def check(self, arg: T) -> bool: ...
+class PlayerRunSpeed:
+    def __init__(self, player: Target[Player]) -> None:
+        self._player = player
+    
+    def evaluate(self, world: World) -> float:
+        player = self._player.resolve(world)
+        # Handle debuffs etc. here or inside player??
+        return player.speed
 
+## Targets
 
-class Cost(Condition[Player], Effect[Player], Protocol): #Any cleaner way?
-    ...
+class Target[T](Protocol): #Sort of the same as number?
+    def resolve(self, world: World) -> T: ...
 
-class NoCost:
+class CasterPlayerTarget:
     @staticmethod
-    def check(_) -> bool: return True
-    @staticmethod
-    def apply(_) -> None: pass
+    def resolve(world: World) -> Player:
+        return world.player
 
-class ElementCost:
-    def __init__(self, *elements: Element) -> None:
-        self.elements = elements
+class CasterPositionTarget: # Just do casterplayertarget and take position attribute instead?
+    def resolve(self, world: World) -> WorldVector:
+        return world.player.position
 
-    def check(self, player: Player) -> bool:
-        player_elements = Counter(player.elements)
-        cost_elements = Counter(self.elements)
-        return player_elements >= cost_elements
+# class CasterFacingDirectionTarget:
+#     def resolve(self, world: World) -> WorldVector:
+#         pass
 
-    def apply(self, context: World) -> None:
+class ElementOrbTarget: # Orb in i world? 
+    def __init__(self, position: WorldVector):
+        self._position = position
+
+    def resolve(self, world: World) -> ElementOrb:
+        orbs = AllOrbs().resolve(world)
+        return next(orb for orb in orbs if orb.position == self._position)
+    
+class ElementOrbPositionTarget: # Orb in i world?
+    def __init__(self, orb: ElementOrbTarget):
+        self._orb = orb
+
+    def resolve(self, world: World) -> WorldVector:
+        orb = self._orb.resolve(world)
+        return orb.position
+    
+class TileTarget: # Alla objekt in i world? Känns som world blir allt?
+    def __init__(self, position: WorldVector):
+        self._position = position
+
+    def resolve(self, world: World) -> Tile:
+        tiles = AllTiles().resolve(world)
+        return next(tile for tile in tiles if tile.position == self._position)
+
+class LevelTarget: # Whaaat? Ett steg för långt?
+    def resolve(self, world: World) -> Level:
+        return world.level
+    
+class MoveDestinationTarget:
+    def __init__(self, origin: Target[WorldVector], direction: WorldVector, duration: timedelta, speed: Number[float]) -> None:
+        self._origin = origin
+        self._direction = direction
+        self._duration = duration
+        self._speed = speed
+        
+    def resolve(self, world: World) -> WorldVector:
+        origin = self._origin.resolve(world)
+        magnitude = math.hypot(self._direction.x, self._direction.y)
+        distance = self._speed.evaluate(world) * self._duration.total_seconds()
+        
+        if not distance or not magnitude:
+            return origin
+
+        return WorldVector(
+            origin.x + self._direction.x * distance / magnitude,
+            origin.y + self._direction.y * distance / magnitude
+        )
+
+#Tickers
+
+class DotTicker(Protocol):
+    def is_finished(self) -> bool:
+        ...
+
+    def tick(self, delta_time: timedelta):
+        ...
+
+class EqualDurationDotTicker():
+    def __init__(self, interval: Number[float], ticks: Number[int], world: World):
+        self._interval = interval.evaluate(world) ## ??
+        self._ticks_left = ticks.evaluate(world) ## ??
+        self._timer = 0.0
+
+    def is_finished(self) -> bool:
+        return self._ticks_left <= 0
+        
+    def tick(self, delta_time: timedelta) -> bool: 
+        if self.is_finished():
+            return False
+        
+        self._timer += delta_time.total_seconds()
+        
+        if self._timer >= self._interval:
+            self._ticks_left -= 1
+            self._timer -= self._interval
+            return True
+
+        return False
+
+## Effects
+
+class Effect[T](Protocol):
+    def apply(self, world: T) -> None: ...
+
+class EffectWithPlayerTarget[T](Protocol):
+    _target: Target[Player]
+
+    def apply(self, world: T) -> None: ...
+
+class NoEffect[T]:
+    def apply(self, world: T) -> None:
         pass
 
-class HealthCost:
-    def __init__(self, amount: Number[int]) -> None:
-        self._amount = amount
+class EffectSequence[T]:
+    def __init__(self, *effects: Effect[T]) -> None:
+        self._effects = effects
 
-    def check(self, _: Player) -> bool:
-        return True
+    def apply(self, world: T) -> None:
+        for effect in self._effects:
+            effect.apply(world)
 
-    def apply(self, player: Player) -> None:
-        health_cost = self._amount.evaluate(player)
-        player.damage(health_cost)
+class DotEffect: # Target? # En dot effect?
+    def __init__(self, effect: EffectWithPlayerTarget, ticker: DotTicker): # Separera Dot och Active?
+        self._effect = effect
+        self._tick = ticker
 
-class CombinedCost:
-    def __init__(self, *costs: Cost) -> None:
-        self._costs = costs
-    def check(self, player: Player) -> bool:
-        return all(cost.check(player) for cost in self._costs)
-    def apply(self, player: Player) -> None:
-        for cost in self._costs:
-            cost.apply(player)
+    @property
+    def effect(self) -> Effect:
+        return self._effect
 
-class For[T]:
-    def __init__(self, target: Target[Player], condition: Condition[Player]):
-        self._target = target
-        self._condition = condition
+    def apply(self, world: World) -> None:
+        self._effect.apply(world)
 
-    def check(self, arg: T) -> bool:
-        target = self._target.resolve(arg)
-        return self._condition.check(target)
-
+    def update(self, delta_time: timedelta, world: World) -> None:
+        if self._tick.tick(delta_time):
+            self.apply(world)
+        
+        if self._tick.is_finished():
+            target = self._effect._target.resolve(world)
+            target.remove_dot_effect(self)
 
 class ProjectileEffect:
     def __init__(self,
@@ -161,7 +352,6 @@ class ProjectileEffect:
             )
         )
 
-
 class HealEffect:
     def __init__(self, target: Target[Player], amount: Number[int]) -> None:
         self._target = target
@@ -172,63 +362,126 @@ class HealEffect:
         heal_amount = self._amount.evaluate(world)
         target.heal(heal_amount)
 
+class SlowedEffect:
+    def __init__(self, target: Target[Player]) -> None:
+        self._target = target
+        
+    def apply(self, world: World) -> None:
+        pass
 
-class DisplaceEffect: # Generic for walls, orbs and projectiles?
-    def __init__(self, player: Target[Player], destination: Target[WorldVector]) -> None:
-        self._player = player
+class RootedEffect:
+    def __init__(self, target: Target[Player]) -> None:
+        self._target = target
+        
+    def apply(self, world: World) -> None:
+        pass
+
+class DisplaceEffect[T: MovableEntity]: # Generic for walls, orbs and projectiles?
+    def __init__(self, target: Target[T], destination: Target[WorldVector]) -> None:
+        self._target = target
         self._destination = destination
         # Speed Number[float]?
 
-    def apply(self, context: World) -> None:
-        player = self._player.resolve(context)
-        destination = self._destination.resolve(context)
+    def apply(self, world: World) -> None:
+        target = self._target.resolve(world)
+        destination = self._destination.resolve(world)
 
-        if context.level.collides_with_wall(destination): # Extract into Conditional?
-            player.events.append(events.Collision())
-            return
+        target.move_entity(destination)
 
-        if orb := context.level.get_touching_orb(destination): # Extract into Sequence?
-            context.level.remove_orb(orb)
-            player.give_element(orb.element)
-            player.events.append(events.OrbPickup())
+class CollectOrbOnGroundEffect: # Collect andra saker än Orb?
+    def __init__(self, target: Target[OrbCollector], orb: Target[Optional[ElementOrb]]):
+        self._target = target
+        self._orb = orb
 
-        player.position = destination
-
-
-class RunDestinationTarget:
-    def __init__(self, origin: Target[WorldVector], direction: WorldVector, duration: timedelta, speed: Number[float]) -> None:
-        self._origin = origin
-        self._direction = direction
-        self._duration = duration
-        self._speed = speed
+    def apply(self, world: World) -> None:
+        target = self._target.resolve(world)
         
-    def resolve(self, context: World) -> WorldVector:
-        origin = self._origin.resolve(context)
-        magnitude = math.hypot(*self._direction)
-        distance = self._speed.evaluate(context) * self._duration.total_seconds()
-        if not distance or not magnitude:
-            return origin
+        if orb := self._orb.resolve(world):
+            world.level.remove_orb(orb)
+            target.collect_orb(orb.element)
+            target.call_event(events.OrbPickup()) # World events?
 
-        return WorldVector(
-            origin.x + self._direction.x * distance / magnitude,
-            origin.y + self._direction.y * distance / magnitude,
-            origin.z
-        )
-
-
-class PlayerRunSpeed:
-    def __init__(self, player: Target[Player]) -> None:
-        self._player = player
+class DestroyOrbEffect():
+    def __init__(self, target: Target[OrbHolder], orb: Target[Optional[ElementOrb]]):
+        self._orb = orb
+        self._target = target
     
-    def evaluate(self, context: World) -> float:
-        player = self._player.resolve(context)
-        # Handle debuffs etc. here or inside player??
-        return player.get_speed()
+    def apply(self, world: World) -> None:
+        target = self._target.resolve(world)
+
+        if orb := self._orb.resolve(world):
+            target.remove_orb(orb)
 
 
-class NoEffect[T]:
-    def apply(self, context: T) -> None:
+# Conditions
+
+class Condition[T](Protocol):
+    def check(self, arg: T) -> bool: 
+        ...
+
+class Cost(Condition[Player], Effect[Player], Protocol): #Any cleaner way?
+    def check(self, player: Player) -> bool:
+        ...
+
+    def apply(self, player: Player) -> None:
+        ...
+
+class NoCost:
+    @staticmethod
+    def check(_) -> bool: return True
+    @staticmethod
+    def apply(_) -> None: pass
+
+class ElementCost:
+    def __init__(self, *elements: Element) -> None:
+        self.elements = elements
+
+    def check(self, player: Player) -> bool:
+        player_elements = Counter(player.elements)
+        cost_elements = Counter(self.elements)
+        return player_elements >= cost_elements
+
+    def apply(self, player: Player) -> None:
         pass
+
+class HealthCost:
+    def __init__(self, amount: Number[int]) -> None:
+        self._amount = amount
+
+    def check(self, player: Player) -> bool:
+        return True
+
+    def apply(self, world: World) -> None:
+        health_cost = self._amount.evaluate(world)
+        world.player.heal(health_cost)
+
+class CombinedCost:
+    def __init__(self, *costs: Cost) -> None:
+        self._costs = costs
+    def check(self, player: Player) -> bool:
+        return all(cost.check(player) for cost in self._costs)
+    def apply(self, player: Player) -> None:
+        for cost in self._costs:
+            cost.apply(player)
+
+class For[T]:
+    def __init__(self, target: Target[Player], condition: Condition[Player]):
+        self._target = target
+        self._condition = condition
+
+    def check(self, arg: T) -> bool:
+        target = self._target.resolve(arg)
+        return self._condition.check(target)
+
+class IsMovableCondition:
+    def __init__(self, target: Target[MovableEntity]):
+        self._target = target
+
+    def check(self, world: World) -> bool:
+        entity = self._target.resolve(world)
+        return entity.movable
+
+## Conditionals
 
 class EffectConditional[T]:
     def __init__(self, condition: Condition[T], on_pass: Effect[T], on_fail: Effect[T]) -> None:
@@ -236,24 +489,55 @@ class EffectConditional[T]:
         self._on_pass = on_pass
         self._on_fail = on_fail
         
-    def apply(self, context: T) -> None:
-        if self._condition.check(context):
-            self._on_pass.apply(context)
+    def apply(self, world: T) -> None:
+        if self._condition.check(world):
+            self._on_pass.apply(world)
         else:
-            self._on_fail.apply(context)
+            self._on_fail.apply(world)
+
+class AndConditional[T]:
+    def __init__(self, conditions: list[Condition[T]], on_pass: Effect[T], on_fail: Effect[T]) -> None:
+        self._conditions = conditions
+        self._on_pass = on_pass
+        self._on_fail = on_fail
+        
+    def apply(self, world: T) -> None:
+        if all(condition.check(world) for condition in self._conditions):
+            self._on_pass.apply(world)
+        else:
+            self._on_fail.apply(world)
+
+class OrConditional[T]:
+    def __init__(self, conditions: list[Condition[T]], on_pass: Effect[T], on_fail: Effect[T]) -> None:
+        self._conditions = conditions
+        self._on_pass = on_pass
+        self._on_fail = on_fail
+        
+    def apply(self, world: T) -> None:
+        if any(condition.check(world) for condition in self._conditions):
+            self._on_pass.apply(world)
+        else:
+            self._on_fail.apply(world)
+
+# Might just as well go all the way in generics?
+# class Query[T, S](Protocol):
+#     def evaluate(self, input_: T) -> S: ...
+# class Command[T](Protocol):
+#     def apply(self, input_: T) -> None: ...
+#     #__call__?
+
+class Spell:
+    def __init__(self, name: str, effect: Effect[World]):
+        self._name = name
+        self._effect = effect
+        #cost?
+        #precondition?
+
+    def apply(self, world: World) -> None: # Just call apply and implement effect interface?...
+        self._effect.apply(world)
 
 
-class PickupOrb:
-    def __init__(self, player: Target[Player], orb: Target[Optional[ElementOrb]]):
-        self._player = player
-        self._orb = orb
-    
-    def apply(self, context: World) -> None:
-        player = self._player.resolve(context)
-        if orb := self._orb.resolve(context):
-            context.level.remove_orb(orb)
-            player.give_element(orb.element)
-            player.events.append(events.OrbPickup()) # World events?
+
 
 class HasPosition(Protocol):
     position: WorldVector
@@ -263,9 +547,9 @@ class Touching[T: HasPosition]:
         self._target = target
         self._colliders = colliders
     
-    def resolve(self, context: World) -> Optional[T]:
-        target = self._target.resolve(context)
-        colliders = self._colliders.resolve(context)
+    def resolve(self, world: World) -> Optional[T]:
+        target = self._target.resolve(world)
+        colliders = self._colliders.resolve(world)
         return next(
             (
                 collider for collider in colliders
@@ -274,17 +558,49 @@ class Touching[T: HasPosition]:
             None
         )
 
-class AllOrbs:
-    def resolve(self, context: World) -> list[ElementOrb]:
-        return context.level.orbs
-class AllWalls:
-    def resolve(self, context: World) -> list[Wall]:
-        return context.level.walls
+# Samma som touching mer eller mindre? 
+# class Traversing[T: HasPosition]:
+#     def __init__(self, target: Target[WorldVector], traversables: Target[Sequence[T]]):
+#         self._target = target
+#         self._traversables = traversables
+
+#     def resolve(self, world: World) -> Optional[T]:
+#         target = self._target.resolve(world)
+#         traversables = self._traversables.resolve(world)
+        
+#         traversed = [
+#             traversable for traversable in traversables
+#             if math.dist((traversable.position.x, traversable.position.y), (target.x, target.y)) < 1
+#         ]
+#         return traversed
+
+# def traverse_something(direction, duration, PlayerRunSpeed):
+#     Conditional(
+
+#     )
+#     destination = MoveDestinationTarget(
+#         origin=CasterPositionTarget(),
+#         direction=direction,
+#         duration=duration,
+#         speed=PlayerRunSpeed(
+#             CasterPlayerTarget()
+#         )
+#     )
+#     return Conditional(AnyResult(
+#             Traversing(
+#                 destination,
+#                 AllTiles
+#             )),
+#             on_pass=EffectSequence(
+                
+#             )
+#         )
+
 class AnyResult[T]:
     def __init__(self, result: Target[Optional[T]]) -> None:
         self._result = result
-    def check(self, context: World) -> bool:
-        return bool(self._result.resolve(context))
+    def check(self, world: World) -> bool:
+        return bool(self._result.resolve(world))
 
 
 class ForEach[T]:
@@ -292,8 +608,8 @@ class ForEach[T]:
         self._effect = effect
         self._targets = targets
 
-    def apply(self, context: World) -> None:
-        for target in self._targets.resolve(context):
+    def apply(self, world: World) -> None:
+        for target in self._targets.resolve(world):
             self._effect.apply(target)
 
 
@@ -311,7 +627,7 @@ class ForEach[T]:
 
 # direction + duration can be created from input
 def create_run_command(direction: WorldVector, duration: timedelta) -> Effect[World]:
-    destination = RunDestinationTarget(
+    destination = MoveDestinationTarget(
         origin=CasterPositionTarget(),
         direction=direction,
         duration=duration,
@@ -319,7 +635,7 @@ def create_run_command(direction: WorldVector, duration: timedelta) -> Effect[Wo
             CasterPlayerTarget()
         )
     )
-    return EffectConditional( # Probably a lot better to just set velocity here and make a physics system handle collisions...
+    return EffectConditional(
         condition=AnyResult(
             Touching(
                 target=destination,
@@ -327,10 +643,47 @@ def create_run_command(direction: WorldVector, duration: timedelta) -> Effect[Wo
             )
         ),
         on_pass=NoEffect(),
-        on_fail=DisplaceEffect(
-            player=CasterPlayerTarget(),
-            destination=destination
+        on_fail=EffectConditional(
+            condition=IsMovableCondition(
+                target=CasterPlayerTarget()
+            ),
+            on_pass=
+                EffectSequence(
+                    DisplaceEffect(
+                        target=CasterPlayerTarget(),
+                        destination=destination
+                    ),
+                    CollectOrbOnGroundEffect( # Ska Collect orb hantera touching såsom nedan?
+                        target=CasterPlayerTarget(),
+                        orb=Touching(
+                            CasterPositionTarget(),
+                            AllOrbs()
+                        )
+                    )
+                ),
+            on_fail=NoEffect()
             )
+    )
+
+def move_orb_command(orb_position: WorldVector, direction: WorldVector, duration: timedelta) -> Effect[World]:
+    orb_target = ElementOrbTarget(orb_position)
+    destination_target = MoveDestinationTarget(
+                    origin=ElementOrbPositionTarget(orb_target),
+                    direction=direction,
+                    duration=timedelta(seconds=1),
+                    speed=ExactValue(5.0)
+                )
+    return EffectConditional(
+        AnyResult(orb_target),
+        on_pass=
+            EffectConditional(
+                IsMovableCondition(orb_target), 
+                on_pass=
+                    DisplaceEffect(orb_target, destination_target),
+                on_fail=
+                    NoEffect()
+            ),
+        on_fail=NoEffect()  
     )
 
 #
@@ -374,10 +727,10 @@ def create_run_command(direction: WorldVector, duration: timedelta) -> Effect[Wo
 #         self._position_selector = position_selector
 #         self._element_selector = element_selector
 #
-#     def apply(self, context: World) -> None:
-#         position = self._position_selector(context)
-#         element = self._element_selector(context)
-#         context.level.spawn_orb(1.0)
+#     def apply(self, world: World) -> None:
+#         position = self._position_selector(world)
+#         element = self._element_selector(world)
+#         world.level.spawn_orb(1.0)
 
 
 # def make_orb_system() -> Callable[[UserInput], Effect[World]]: #orb_timer: Callable[[UserInput], bool]
@@ -393,16 +746,13 @@ def create_run_command(direction: WorldVector, duration: timedelta) -> Effect[Wo
 #     return orb_system
 
 
-
-
-
 class RelativeDirection:
     def __init__(self, position_a: Target[WorldVector], position_b: Target[WorldVector]) -> None:
         self._position_a = position_a
         self._position_b = position_b
     def resolve(self, world: World) -> WorldVector:
-        x_a, y_a, _ = self._position_a.resolve(world)
-        x_b, y_b, _ = self._position_b.resolve(world)
+        x_a, y_a = self._position_a.resolve(world)
+        x_b, y_b = self._position_b.resolve(world)
         return WorldVector(x_a-x_b, y_a-y_b)
 
 
@@ -432,8 +782,8 @@ def create_heal_spell(_) -> Spell:
     )
 
 
-def create_push_spell() -> Spell:
-    pass
+# def create_push_spell() -> Spell:
+#     pass
 
 #
 # spell_map: dict[Cost, Spell] = { # Order important? Make list of tuples?
@@ -443,11 +793,11 @@ def create_push_spell() -> Spell:
 #
 #
 # # SpellFactory
-# def conjure_spell(context: World) -> Effect[World]:# Optional[Spell]:
+# def conjure_spell(world: World) -> Effect[World]:# Optional[Spell]:
 #     for cost, spell in spell_map.items():
-#         if not cost.check(context.player): continue
+#         if not cost.check(world.player): continue
 #         # Potentially check other preconditions?
-#         cost.apply(context.player)
+#         cost.apply(world.player)
 #         return spell
 #     else:
 #         return NoEffect() #None # NoSpell?
@@ -455,12 +805,12 @@ def create_push_spell() -> Spell:
 #
 # class ConjureSpell:
 #     #def __init__(self, user_input: UserInput) -> None:
-#     def apply(self, context: World) -> None:  # Optional[Spell]:
+#     def apply(self, world: World) -> None:  # Optional[Spell]:
 #         for cost, spell in spell_map.items():
-#             if not cost.check(context.player): continue
+#             if not cost.check(world.player): continue
 #             # Potentially check other preconditions?
-#             cost.apply(context.player)
-#             spell.apply(context)
+#             cost.apply(world.player)
+#             spell.apply(world)
 #             return
 #
 #
